@@ -1,21 +1,26 @@
-use chrono::{DateTime, Utc};
 use serde::{Deserialize, Deserializer, Serialize};
 use serde::de::Error;
 use serde_json::Value;
 
+// Request structs
+//
+
 #[derive(Serialize)]
-pub struct RequestDeviceHistoryData {
-    pub sn: String,
-    pub variables: Vec<String>,
+pub struct RequestDeviceHistoryData<'a> {
+    pub sn: &'a str,
+    pub variables: Vec<&'a str>,
     pub begin: i64,
     pub end: i64,
 }
 
 #[derive(Serialize)]
-pub struct RequestDeviceRealTimeData {
-    pub variables: Vec<String>,
-    pub sns: Vec<String>,
+pub struct RequestDeviceRealTimeData<'a> {
+    pub variables: Vec<&'a str>,
+    pub sns: Vec<&'a str>,
 }
+
+// Reply structs for device history data
+//
 
 #[derive(Serialize, Deserialize)]
 pub struct Data {
@@ -41,12 +46,24 @@ pub struct DeviceHistoryResult {
     pub result: Vec<DeviceHistoryData>,
 }
 
-pub struct DeviceHistory {
-    pub last_end_time: DateTime<Utc>,
-    pub time: Vec<DateTime<Utc>>,
-    pub pv_power: Vec<f64>,
-    pub ld_power: Vec<f64>,
-    pub soc: Vec<u8>,
+// Reply structs for device real time data
+//
+
+#[derive(Deserialize)]
+pub struct RealTimeData {
+    pub variable: String,
+    #[serde(deserialize_with = "deserialize_scientific_notation")]
+    pub value: f64,
+}
+
+#[derive(Deserialize)]
+pub struct RealTimeVariables {
+    pub datas: Vec<RealTimeData>,
+}
+
+#[derive(Deserialize)]
+pub struct DeviceRealTimeResult {
+    pub result: Vec<RealTimeVariables>,
 }
 
 fn deserialize_scientific_notation<'de, D>(deserializer: D) -> Result<f64, D::Error>
@@ -60,28 +77,4 @@ where D: Deserializer<'de> {
         .map_err(|_| Error::custom("overflow"))?;
 
     Ok(x)
-}
-
-#[derive(Deserialize)]
-pub struct DeviceRealTimeResult {
-    pub result: Vec<RealTimeVariables>,
-}
-
-#[derive(Deserialize)]
-pub struct RealTimeVariables {
-    pub datas: Vec<RealTimeData>,
-}
-
-#[derive(Deserialize)]
-pub struct RealTimeData {
-    pub variable: String,
-    #[serde(deserialize_with = "deserialize_scientific_notation")]
-    pub value: f64,
-}
-
-pub struct DeviceRealTime {
-    pub pv_power: f64,
-    pub ld_power: f64,
-    pub soc: u8,
-    pub soh: u8,
 }
