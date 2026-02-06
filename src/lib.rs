@@ -49,33 +49,6 @@ mod tests {
         });
 
         println!("{:?}", r.get_f64(FoxSettings::MaxSetChargeCurrent));
-
-
-        /// Reads a credential from the file system supported by the credstore and
-        /// given from systemd
-        ///
-        /// # Arguments
-        ///
-        /// * 'name' - name of the credential to read
-        fn read_credential(name: &str) -> Result<String, ConfigError> {
-            let dir = env::var("CREDENTIALS_DIRECTORY")?;
-            let mut p = PathBuf::from(dir);
-            p.push(name);
-            let bytes = fs::read(p)?;
-            Ok(String::from_utf8(bytes)?.trim_end().to_string())
-        }
-
-        /// Errors while managing configuration
-        ///
-        #[derive(Debug, Error)]
-        enum ConfigError {
-            #[error("IoError: {0}")]
-            IoError(#[from] std::io::Error),
-            #[error("StringConversionError: {0}")]
-            StringConversionError(#[from] alloc::string::FromUtf8Error),
-            #[error("EnvVarError: {0}")]
-            EnvVarError(#[from] env::VarError),
-        }
     }
 
     #[cfg(feature = "blocking")]
@@ -104,33 +77,31 @@ mod tests {
         });
 
         println!("{:?}", r.get_f64(FoxSettings::MaxSetChargeCurrent));
-
-
-        /// Reads a credential from the file system supported by the credstore and
-        /// given from systemd
-        ///
-        /// # Arguments
-        ///
-        /// * 'name' - name of the credential to read
-        fn read_credential(name: &str) -> Result<String, ConfigError> {
-            let dir = env::var("CREDENTIALS_DIRECTORY")?;
-            let mut p = PathBuf::from(dir);
-            p.push(name);
-            let bytes = fs::read(p)?;
-            Ok(String::from_utf8(bytes)?.trim_end().to_string())
-        }
-
-        /// Errors while managing configuration
-        ///
-        #[derive(Debug, Error)]
-        enum ConfigError {
-            #[error("IoError: {0}")]
-            IoError(#[from] std::io::Error),
-            #[error("StringConversionError: {0}")]
-            StringConversionError(#[from] alloc::string::FromUtf8Error),
-            #[error("EnvVarError: {0}")]
-            EnvVarError(#[from] env::VarError),
-        }
     }
 
+    /// Reads a credential from the file system supported by the credstore and
+    /// given from systemd
+    ///
+    /// # Arguments
+    ///
+    /// * 'name' - name of the credential to read
+    fn read_credential(name: &str) -> Result<String, ConfigError> {
+        let dir = env::var("CREDENTIALS_DIRECTORY")?;
+        let mut p = PathBuf::from(dir);
+        p.push(name);
+        let bytes = fs::read(p)?;
+        Ok(String::from_utf8(bytes)?.trim_end().to_string())
+    }
+
+    /// Errors while managing configuration
+    ///
+    #[derive(Debug, Error)]
+    enum ConfigError {
+        #[error("IoError: {0}")]
+        IoError(#[from] std::io::Error),
+        #[error("StringConversionError: {0}")]
+        StringConversionError(#[from] alloc::string::FromUtf8Error),
+        #[error("EnvVarError: {0}")]
+        EnvVarError(#[from] env::VarError),
+    }
 }
