@@ -19,6 +19,19 @@ pub struct RequestDeviceRealTimeData<'a> {
     pub sns: Vec<&'a str>,
 }
 
+#[derive(Serialize)]
+pub struct RequestSettingsData<'a> {
+    pub sn: &'a str,
+    pub key: &'a str,
+}
+
+#[derive(Serialize)]
+pub struct SetSetting<'a> { 
+    pub sn: &'a str, 
+    pub key: &'a str, 
+    pub value: &'a str, 
+}
+
 // Reply structs for device history data
 //
 
@@ -66,6 +79,20 @@ pub struct DeviceRealTimeResult {
     pub result: Vec<RealTimeVariables>,
 }
 
+
+// Reply structs for device settings
+
+#[derive(Deserialize)]
+pub struct SettingsData {
+    pub value: String,
+}
+
+#[derive(Deserialize)]
+pub struct DeviceSettingsResult {
+    pub result: SettingsData,
+}
+
+
 fn deserialize_scientific_notation<'de, D>(deserializer: D) -> Result<f64, D::Error>
 where D: Deserializer<'de> {
 
@@ -78,3 +105,5 @@ where D: Deserializer<'de> {
 
     Ok(x)
 }
+
+

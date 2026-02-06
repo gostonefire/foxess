@@ -4,7 +4,10 @@ mod client;
 
 
 pub use client::Fox;
-pub use models::FoxParameter;
+pub use models::FoxVariables;
+pub use models::FoxSettings;
+pub use error::FoxError;
+
 
 #[cfg(test)]
 mod tests {
@@ -12,7 +15,8 @@ mod tests {
     use std::{env, fs};
     use std::path::PathBuf;
     use thiserror::Error;
-    use super::{Fox, FoxParameter};
+    use crate::FoxSettings;
+    use crate::Fox;
 
     #[tokio::test]
     async fn it_works() {
@@ -27,15 +31,18 @@ mod tests {
             panic!("Failed to create Fox instance: {e}");
         });
 
-        let parameters = vec![FoxParameter::PvPower, FoxParameter::LoadsPower, FoxParameter::SoC, FoxParameter::SoH];
-        let r = fox.get_device_real_time_data(parameters).await.unwrap_or_else(|e| {
-            panic!("Failed to get device real time data: {e}");
+        //let parameters = vec![FoxVariables::PvPower, FoxVariables::LoadsPower, FoxVariables::SoC, FoxVariables::SoH];
+        //let r = fox.get_device_real_time_data(parameters).await.unwrap_or_else(|e| {
+        //    panic!("Failed to get device real time data: {e}");
+        //});
+
+        //println!("{:?} {:?} {:?} {:?}", r.get(FoxVariables::LoadsPower), r.get(FoxVariables::PvPower), r.get_u8_percent(FoxVariables::SoC), r.get_u8_percent(FoxVariables::SoH));
+
+        let r = fox.get_settings(vec![FoxSettings::MaxSetChargeCurrent]).await.unwrap_or_else(|e| {
+            panic!("Failed to get device settings: {e}");
         });
 
-        println!("{:?} {:?} {:?} {:?}", r.get(FoxParameter::LoadsPower), r.get(FoxParameter::PvPower), r.get_u8_percent(FoxParameter::SoC), r.get_u8_percent(FoxParameter::SoH));
-
-        let result = 4;
-        assert_eq!(result, 4);
+        println!("{:?}", r.get_f64(FoxSettings::MaxSetChargeCurrent));
 
 
         /// Reads a credential from the file system supported by the credstore and

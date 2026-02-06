@@ -10,4 +10,6 @@ pub enum FoxError {
     JsonParseError(#[from] serde_json::Error),
     #[error("ChronoParseError: {0}")]
     ChronoParseError(#[from] chrono::format::ParseError),
+    #[error("UnallowedSetSetting")]
+    UnallowedSetSetting,
 }
