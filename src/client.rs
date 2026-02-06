@@ -3,7 +3,6 @@ use std::str::FromStr;
 use std::time::Duration;
 use chrono::{DateTime, Utc};
 use md5::{Digest, Md5};
-use reqwest::Client;
 use reqwest::header::{HeaderMap, HeaderName, HeaderValue};
 use serde::{Deserialize, Serialize};
 use crate::error::FoxError;
@@ -14,12 +13,21 @@ use crate::models::settings::{DeviceSettings, SettingsDataPoint};
 
 const REQUEST_DOMAIN: &str = "https://www.foxesscloud.com";
 
+#[cfg(feature = "async")]
 pub struct Fox {
     api_key: String,
     sn: String,
-    client: Client,
+    client: reqwest::Client,
 }
 
+#[cfg(feature = "blocking")]
+pub struct Fox {
+    api_key: String,
+    sn: String,
+    client: reqwest::blocking::Client,
+}
+
+#[cfg(feature = "async")]
 impl Fox {
     /// Returns a new instance of the Fox struct
     ///
@@ -29,7 +37,7 @@ impl Fox {
     /// * 'sn' - FoxESS inverter serial number
     /// * 'request_timeout' - Request timeout in seconds
     pub fn new(api_key: &str, sn: &str, request_timeout: u64) -> Result<Self, FoxError> {
-        let client = Client::builder()
+        let client = reqwest::Client::builder()
             .timeout(Duration::from_secs(request_timeout))
             .build()?;
 
@@ -166,10 +174,11 @@ impl Fox {
     /// * path - the API path excluding the domain
     /// * body - a string containing the payload in json format
     async fn post_request(&self, path: &str, body: String) -> Result<String, FoxError> {
+        dbg!("non-blocking post_request: {}", path);
         let url = format!("{}{}", REQUEST_DOMAIN, path);
 
         //let mut req = self.client.post(url);
-        let headers = self.generate_headers(&path, Some(vec!(("Content-Type", "application/json"))));
+        let headers = generate_headers(&self.api_key, &path, Some(vec!(("Content-Type", "application/json"))));
 
         let req = self.client.post(url)
             .headers(headers)
@@ -189,37 +198,209 @@ impl Fox {
 
         Ok(json)
     }
+}
 
-    /// Generates http headers required by Fox Open API, this includes also building a
-    /// md5 hashed signature.
+#[cfg(feature = "blocking")]
+impl Fox {
+    /// Returns a new instance of the Fox struct
     ///
     /// # Arguments
     ///
-    /// * 'path' - the path, excluding the domain part, to the FoxESS specific API
-    /// * 'extra' - any extra headers to add besides FoxCloud standards
-    fn generate_headers(&self, path: &str, extra: Option<Vec<(&str, &str)>>) -> HeaderMap {
-        let mut headers = HeaderMap::new();
+    /// * 'api_key' - FoxESS API Key
+    /// * 'sn' - FoxESS inverter serial number
+    /// * 'request_timeout' - Request timeout in seconds
+    pub fn new(api_key: &str, sn: &str, request_timeout: u64) -> Result<Self, FoxError> {
+        let client = reqwest::blocking::Client::builder()
+            .timeout(Duration::from_secs(request_timeout))
+            .build()?;
 
-        let timestamp = Utc::now().timestamp() * 1000;
-        let signature = format!("{}\\r\\n{}\\r\\n{}", path, self.api_key, timestamp);
+        Ok(Self { api_key: api_key.to_string(), sn: sn.to_string(), client })
+    }
 
-        let mut hasher = Md5::new();
-        hasher.update(signature.as_bytes());
-        let signature_md5 = hasher.finalize().iter().map(|x| format!("{:02x}", x)).collect::<String>();
+    /// Collect history data from the inverter
+    ///
+    /// See https://www.foxesscloud.com/public/i18n/en/OpenApiDocument.html#get20device20history20data0a3ca20id3dget20device20history20data4303e203ca3e
+    ///
+    /// # Arguments
+    ///
+    /// * 'start' - the start time of the report
+    /// * 'end' - the end time of the report
+    /// * 'variables' - List of variables to retrieve from the inverter
+    pub fn get_device_history_data(&self, start: DateTime<Utc>, end: DateTime<Utc>, parameters: Vec<FoxVariables>) -> Result<DeviceHistory, FoxError> {
+        let path = "/op/v0/device/history/query";
 
-        headers.insert("token", HeaderValue::from_str(&self.api_key).unwrap());
-        headers.insert("timestamp", HeaderValue::from_str(&timestamp.to_string()).unwrap());
-        headers.insert("signature", HeaderValue::from_str(&signature_md5).unwrap());
-        headers.insert("lang", HeaderValue::from_str("en").unwrap());
+        let req = RequestDeviceHistoryData {
+            sn: &self.sn,
+            variables: parameters.iter().map(|p| p.as_str()).collect(),
+            begin: start.timestamp_millis(),
+            end: end.timestamp_millis(),
+        };
 
-        if let Some(h) = extra {
-            h.iter().for_each(|&(k, v)| {
-                headers.insert(HeaderName::from_str(k).unwrap(), HeaderValue::from_str(v).unwrap());
+        let req_json = serde_json::to_string(&req)?;
+
+        let json = self.post_request(&path, req_json)?;
+
+        let fox_data: DeviceHistoryResult = serde_json::from_str(&json)?;
+        let device_history = transform_history_data(fox_data.result)?;
+
+        Ok(device_history)
+    }
+
+    /// Collect real-time data from the inverter
+    ///
+    /// See https://www.foxesscloud.com/public/i18n/en/OpenApiDocument.html#get20device20real-time20data0a3ca20id3dget20device20real-time20data5603e203ca3e
+    ///
+    /// # Arguments
+    ///
+    /// * 'variables' - List of variables to retrieve from the inverter
+    pub fn get_device_real_time_data(&self, variables: Vec<FoxVariables>) -> Result<DeviceRealTime, FoxError> {
+        let path = "/op/v1/device/real/query";
+
+        let req = RequestDeviceRealTimeData {
+            variables: variables.iter().map(|p| p.as_str()).collect(),
+            sns: vec![&self.sn],
+        };
+
+        let req_json = serde_json::to_string(&req)?;
+
+        let json = self.post_request(&path, req_json)?;
+
+        let fox_data: DeviceRealTimeResult = serde_json::from_str(&json)?;
+
+        let mut data_points: HashMap<FoxVariables, VariableDataPoint> = HashMap::new();
+
+        // Be defensive: Fox API returns a Vec; can't assume [0] exists.
+        let Some(first) = fox_data.result.first() else {
+            return Ok(DeviceRealTime {
+                data_points,
             });
+        };
+
+        for data in first.datas.iter() {
+            // Only accept variables that are part of FoxParameter.
+            let Ok(p) = FoxVariables::from_str(data.variable.as_str()) else {
+                continue;
+            };
+
+            let value = data.value;
+            data_points.insert(p, VariableDataPoint(value));
         }
 
-        headers
+        Ok(DeviceRealTime { data_points })
     }
+
+    /// Get settings from the inverter
+    ///
+    /// See https://www.foxesscloud.com/public/i18n/en/OpenApiDocument.html#get20the20device20settings20item0a3ca20id3dget20the20device20settings20item4303e203ca3e
+    ///
+    /// # Arguments
+    ///
+    /// * 'settings' - List of settings to retrieve from the inverter
+    pub fn get_settings(&self, settings: Vec<FoxSettings>) -> Result<DeviceSettings, FoxError> {
+        let path = "/op/v0/device/setting/get";
+
+        let mut data_points: HashMap<FoxSettings, SettingsDataPoint> = HashMap::new();
+
+        for s in settings.iter() {
+            let req = RequestSettingsData { sn: &self.sn, key: s.as_str() };
+
+            let req_json = serde_json::to_string(&req)?;
+
+            let json = self.post_request(&path, req_json)?;
+
+            let fox_data: DeviceSettingsResult = serde_json::from_str(&json)?;
+
+            data_points.insert(*s, SettingsDataPoint(fox_data.result.value));
+        }
+
+        Ok(DeviceSettings { data_points })
+    }
+
+    /// Set setting in the inverter
+    ///
+    /// See https://www.foxesscloud.com/public/i18n/en/OpenApiDocument.html#set20the20device20settings20item0a3ca20id3dset20the20device20settings20item4303e203ca3e
+    ///
+    /// # Arguments
+    ///
+    /// * 'setting' - Settings to set in the inverter
+    pub fn set_setting<T: ToString>(&self, setting: FoxSettings, value: T) -> Result<(), FoxError> {
+        if !setting.set_allowed() { return Err(FoxError::UnallowedSetSetting); }
+
+        let path = "/op/v0/device/setting/set";
+
+        let data = value.to_string();
+
+        let req = SetSetting { sn: &self.sn, key: setting.as_str(), value: &data };
+        let req_json = serde_json::to_string(&req)?;
+
+        let _ = self.post_request(&path, req_json)?;
+
+        Ok(())
+    }
+
+    /// Builds a request and sends it as a POST.
+    /// The return is the json representation of the result as specified by
+    /// respective FoxESS API
+    ///
+    /// # Arguments
+    ///
+    /// * path - the API path excluding the domain
+    /// * body - a string containing the payload in json format
+    fn post_request(&self, path: &str, body: String) -> Result<String, FoxError> {
+        dbg!("blocking post_request: {}", path);
+        let url = format!("{}{}", REQUEST_DOMAIN, path);
+
+        let headers = generate_headers(&self.api_key, &path, Some(vec!(("Content-Type", "application/json"))));
+
+        let req = self.client.post(url)
+            .headers(headers)
+            .body(body)
+            .send()?;
+
+        let status = req.status();
+        if !status.is_success() {
+            return Err(FoxError::FoxCloud(format!("{:?}", status)));
+        }
+
+        let json = req.text()?;
+        let fox_res: FoxResponse = serde_json::from_str(&json)?;
+        if fox_res.errno != 0 {
+            return Err(FoxError::FoxCloud(format!("errno: {}, msg: {}", fox_res.errno, fox_res.msg)));
+        }
+
+        Ok(json)
+    }
+}
+
+/// Generates http headers required by Fox Open API, this includes also building a
+/// md5 hashed signature.
+///
+/// # Arguments
+///
+/// * 'path' - the path, excluding the domain part, to the FoxESS specific API
+/// * 'extra' - any extra headers to add besides FoxCloud standards
+fn generate_headers(api_key: &str, path: &str, extra: Option<Vec<(&str, &str)>>) -> HeaderMap {
+    let mut headers = HeaderMap::new();
+
+    let timestamp = Utc::now().timestamp() * 1000;
+    let signature = format!("{}\\r\\n{}\\r\\n{}", path, api_key, timestamp);
+
+    let mut hasher = Md5::new();
+    hasher.update(signature.as_bytes());
+    let signature_md5 = hasher.finalize().iter().map(|x| format!("{:02x}", x)).collect::<String>();
+
+    headers.insert("token", HeaderValue::from_str(api_key).unwrap());
+    headers.insert("timestamp", HeaderValue::from_str(&timestamp.to_string()).unwrap());
+    headers.insert("signature", HeaderValue::from_str(&signature_md5).unwrap());
+    headers.insert("lang", HeaderValue::from_str("en").unwrap());
+
+    if let Some(h) = extra {
+        h.iter().for_each(|&(k, v)| {
+            headers.insert(HeaderName::from_str(k).unwrap(), HeaderValue::from_str(v).unwrap());
+        });
+    }
+
+    headers
 }
 
 /// Transforms device history data to a format easier to save as non-json file

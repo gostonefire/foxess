@@ -3,8 +3,13 @@ name = "foxess"
 version = "0.1.0"
 edition = "2024"
 
+[features]
+default = ["async"]
+async = ["dep:reqwest"]
+blocking = ["dep:reqwest", "reqwest/blocking"]
+
 [dependencies]
-reqwest = { version = "0.13", features = ["query", "form"] }
+reqwest = { version = "0.13", default-features = false, features = ["query", "form", "rustls"], optional = true }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 thiserror = "2.0"
