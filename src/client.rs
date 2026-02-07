@@ -45,13 +45,18 @@ impl Fox {
     /// * 'sn' - FoxESS inverter serial number
     /// * 'request_timeout' - Request timeout in seconds
     pub fn new(api_key: &str, sn: &str, request_timeout: u64) -> Result<Self, FoxError> {
-        Self::new_with_base_url(api_key, sn, request_timeout, DEFAULT_REQUEST_DOMAIN)
+        Self::new_with_base_url_and_clock(api_key, sn, request_timeout, DEFAULT_REQUEST_DOMAIN, default_now_millis)
     }
 
-    fn new_with_base_url(api_key: &str, sn: &str, request_timeout: u64, base_url: &str) -> Result<Self, FoxError> {
-        Self::new_with_base_url_and_clock(api_key, sn, request_timeout, base_url, default_now_millis)
-    }
-
+    /// Returns a new instance of the Fox struct (used only by unit tests)
+    ///
+    /// # Arguments
+    ///
+    /// * 'api_key' - FoxESS API Key
+    /// * 'sn' - FoxESS inverter serial number
+    /// * 'request_timeout' - Request timeout in seconds
+    /// * 'base_url' - Base url to use
+    /// * 'now_millis' - Function to get a timestamp in milliseconds
     fn new_with_base_url_and_clock(
         api_key: &str,
         sn: &str,
@@ -237,13 +242,19 @@ impl Fox {
     /// * 'sn' - FoxESS inverter serial number
     /// * 'request_timeout' - Request timeout in seconds
     pub fn new(api_key: &str, sn: &str, request_timeout: u64) -> Result<Self, FoxError> {
-        Self::new_with_base_url(api_key, sn, request_timeout, DEFAULT_REQUEST_DOMAIN)
+        Self::new_with_base_url_and_clock(api_key, sn, request_timeout, DEFAULT_REQUEST_DOMAIN, default_now_millis)
     }
 
-    fn new_with_base_url(api_key: &str, sn: &str, request_timeout: u64, base_url: &str) -> Result<Self, FoxError> {
-        Self::new_with_base_url_and_clock(api_key, sn, request_timeout, base_url, default_now_millis)
-    }
 
+    /// Returns a new instance of the Fox struct (used only by unit tests)
+    ///
+    /// # Arguments
+    ///
+    /// * 'api_key' - FoxESS API Key
+    /// * 'sn' - FoxESS inverter serial number
+    /// * 'request_timeout' - Request timeout in seconds
+    /// * 'base_url' - Base url to use
+    /// * 'now_millis' - Function to get a timestamp in milliseconds
     fn new_with_base_url_and_clock(
         api_key: &str,
         sn: &str,
