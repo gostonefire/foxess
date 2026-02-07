@@ -48,11 +48,11 @@ impl Fox {
         Self::new_with_base_url(api_key, sn, request_timeout, DEFAULT_REQUEST_DOMAIN)
     }
 
-    pub fn new_with_base_url(api_key: &str, sn: &str, request_timeout: u64, base_url: &str) -> Result<Self, FoxError> {
+    fn new_with_base_url(api_key: &str, sn: &str, request_timeout: u64, base_url: &str) -> Result<Self, FoxError> {
         Self::new_with_base_url_and_clock(api_key, sn, request_timeout, base_url, default_now_millis)
     }
 
-    pub fn new_with_base_url_and_clock(
+    fn new_with_base_url_and_clock(
         api_key: &str,
         sn: &str,
         request_timeout: u64,
@@ -240,11 +240,11 @@ impl Fox {
         Self::new_with_base_url(api_key, sn, request_timeout, DEFAULT_REQUEST_DOMAIN)
     }
 
-    pub fn new_with_base_url(api_key: &str, sn: &str, request_timeout: u64, base_url: &str) -> Result<Self, FoxError> {
+    fn new_with_base_url(api_key: &str, sn: &str, request_timeout: u64, base_url: &str) -> Result<Self, FoxError> {
         Self::new_with_base_url_and_clock(api_key, sn, request_timeout, base_url, default_now_millis)
     }
 
-    pub fn new_with_base_url_and_clock(
+    fn new_with_base_url_and_clock(
         api_key: &str,
         sn: &str,
         request_timeout: u64,
@@ -501,3 +501,6 @@ struct FoxResponse {
     errno: u32,
     msg: String,
 }
+
+#[cfg(test)]
+mod tests;

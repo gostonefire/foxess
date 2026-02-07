@@ -17,7 +17,7 @@ fn expected_signature(path: &str, api_key: &str, timestamp_millis: i64) -> Strin
 #[cfg(feature = "blocking")]
 #[test]
 fn blocking_get_settings_uses_mock_server() {
-    use foxess::{Fox, FoxSettings};
+    use crate::{Fox, FoxSettings};
 
     const API_KEY: &str = "TEST_API_KEY";
     const SN: &str = "TEST_SN";
@@ -59,7 +59,7 @@ fn blocking_get_settings_uses_mock_server() {
 #[cfg(feature = "blocking")]
 #[test]
 fn blocking_set_settings_uses_mock_server() {
-    use foxess::{Fox, FoxSettings};
+    use crate::{Fox, FoxSettings};
 
     const API_KEY: &str = "TEST_API_KEY";
     const SN: &str = "TEST_SN";
@@ -98,7 +98,7 @@ fn blocking_set_settings_uses_mock_server() {
 #[cfg(feature = "blocking")]
 #[test]
 fn blocking_get_realtime_parses_scientific_notation() {
-    use foxess::{Fox, FoxVariables};
+    use crate::{Fox, FoxVariables};
 
     const API_KEY: &str = "TEST_API_KEY";
     const SN: &str = "TEST_SN";
@@ -145,16 +145,27 @@ fn blocking_get_realtime_parses_scientific_notation() {
 #[test]
 fn blocking_get_history_transforms_first_datapoint_only() {
     use chrono::{TimeZone, Utc};
-    use foxess::{Fox, FoxVariables};
+    use crate::{Fox, FoxVariables};
+
+    const API_KEY: &str = "TEST_API_KEY";
+    const SN: &str = "TEST_SN";
+    const TS: i64 = 1_700_000_000_000;
+    const PATH: &str = "/op/v0/device/history/query";
+
+    fn fixed_now() -> i64 { TS }
 
     let server = MockServer::start();
+    let sig = expected_signature(PATH, API_KEY, TS);
 
     let _m = server.mock(|when, then| {
         when.method(POST)
-            .path("/op/v0/device/history/query")
-            .header_exists("token")
-            .header_exists("timestamp")
-            .header_exists("signature");
+            .path(PATH)
+            .header("token", API_KEY)
+            .header("timestamp", &TS.to_string())
+            .header("signature", &sig)
+            .header("lang", "en")
+            .header("content-type", "application/json")
+            .json_body_includes(&format!(r#"{{"sn": "{}","variables": ["pvPower"],"begin": 0,"end": 1}}"#, SN));
 
         then.status(200)
             .header("Content-Type", "application/json")
@@ -173,7 +184,7 @@ fn blocking_get_history_transforms_first_datapoint_only() {
             }"#);
     });
 
-    let fox = Fox::new_with_base_url("TEST_API_KEY", "TEST_SN", 5, &server.base_url()).unwrap();
+    let fox = Fox::new_with_base_url_and_clock("TEST_API_KEY", "TEST_SN", 5, &server.base_url(), fixed_now).unwrap();
     let start = Utc.timestamp_millis_opt(0).unwrap();
     let end = Utc.timestamp_millis_opt(1).unwrap();
 
@@ -187,12 +198,17 @@ fn blocking_get_history_transforms_first_datapoint_only() {
 #[cfg(feature = "blocking")]
 #[test]
 fn blocking_errno_nonzero_maps_to_error() {
-    use foxess::{Fox, FoxSettings};
+    use crate::{Fox, FoxSettings};
+
+    const TS: i64 = 1_700_000_000_000;
+    const PATH: &str = "/op/v0/device/setting/get";
+
+    fn fixed_now() -> i64 { TS }
 
     let server = MockServer::start();
 
     let _m = server.mock(|when, then| {
-        when.method(POST).path("/op/v0/device/setting/get");
+        when.method(POST).path(PATH);
 
         then.status(200)
             .header("Content-Type", "application/json")
@@ -203,7 +219,7 @@ fn blocking_errno_nonzero_maps_to_error() {
             }"#);
     });
 
-    let fox = Fox::new_with_base_url("TEST_API_KEY", "TEST_SN", 5, &server.base_url()).unwrap();
+    let fox = Fox::new_with_base_url_and_clock("TEST_API_KEY", "TEST_SN", 5, &server.base_url(), fixed_now).unwrap();
     let err = fox.get_settings(vec![FoxSettings::MaxSetChargeCurrent])
         .err()
         .expect("get_settings should fail");
@@ -216,16 +232,21 @@ fn blocking_errno_nonzero_maps_to_error() {
 #[cfg(feature = "blocking")]
 #[test]
 fn blocking_http_status_error_maps_to_error() {
-    use foxess::{Fox, FoxSettings};
+    use crate::{Fox, FoxSettings};
+
+    const TS: i64 = 1_700_000_000_000;
+    const PATH: &str = "/op/v0/device/setting/get";
+
+    fn fixed_now() -> i64 { TS }
 
     let server = MockServer::start();
 
     let _m = server.mock(|when, then| {
-        when.method(POST).path("/op/v0/device/setting/get");
+        when.method(POST).path(PATH);
         then.status(500).body("oops");
     });
 
-    let fox = Fox::new_with_base_url("TEST_API_KEY", "TEST_SN", 5, &server.base_url()).unwrap();
+    let fox = Fox::new_with_base_url_and_clock("TEST_API_KEY", "TEST_SN", 5, &server.base_url(), fixed_now).unwrap();
     let err = fox.get_settings(vec![FoxSettings::MaxSetChargeCurrent])
         .err()
         .expect("get_settings should fail");
