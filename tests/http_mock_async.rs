@@ -58,7 +58,7 @@ async fn async_get_settings_uses_mock_server() {
 
 #[cfg(feature = "async")]
 #[tokio::test]
-async fn blocking_get_realtime_parses_scientific_notation() {
+async fn async_get_realtime_parses_scientific_notation() {
     use foxess::{Fox, FoxVariables};
 
     const API_KEY: &str = "TEST_API_KEY";
@@ -147,7 +147,7 @@ async fn async_get_history_transforms_first_datapoint_only() {
 
 #[cfg(feature = "async")]
 #[tokio::test]
-async fn blocking_errno_nonzero_maps_to_error() {
+async fn async_errno_nonzero_maps_to_error() {
     use foxess::{Fox, FoxSettings};
 
     let server = MockServer::start();

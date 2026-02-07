@@ -16,7 +16,7 @@ fn expected_signature(path: &str, api_key: &str, timestamp_millis: i64) -> Strin
 
 #[cfg(feature = "blocking")]
 #[test]
-fn async_get_settings_uses_mock_server() {
+fn blocking_get_settings_uses_mock_server() {
     use foxess::{Fox, FoxSettings};
 
     const API_KEY: &str = "TEST_API_KEY";
@@ -104,7 +104,7 @@ fn blocking_get_realtime_parses_scientific_notation() {
 
 #[cfg(feature = "blocking")]
 #[test]
-fn async_get_history_transforms_first_datapoint_only() {
+fn blocking_get_history_transforms_first_datapoint_only() {
     use chrono::{TimeZone, Utc};
     use foxess::{Fox, FoxVariables};
 
@@ -177,7 +177,7 @@ fn blocking_errno_nonzero_maps_to_error() {
 
 #[cfg(feature = "blocking")]
 #[test]
-fn async_http_status_error_maps_to_error() {
+fn blocking_http_status_error_maps_to_error() {
     use foxess::{Fox, FoxSettings};
 
     let server = MockServer::start();
