@@ -18,3 +18,4 @@ md-5 = "0.10.6"
 
 [dev-dependencies]
 tokio = { version = "1.49", features = ["macros", "rt"] }
+httpmock = "0.8"

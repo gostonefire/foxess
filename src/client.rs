@@ -11,12 +11,18 @@ use crate::models::dto::{DeviceHistoryData, DeviceHistoryResult, DeviceRealTimeR
 use crate::models::fox_settings::FoxSettings;
 use crate::models::settings::{DeviceSettings, SettingsDataPoint};
 
-const REQUEST_DOMAIN: &str = "https://www.foxesscloud.com";
+const DEFAULT_REQUEST_DOMAIN: &str = "https://www.foxesscloud.com";
+
+fn default_now_millis() -> i64 {
+    Utc::now().timestamp() * 1000
+}
 
 #[cfg(feature = "async")]
 pub struct Fox {
     api_key: String,
     sn: String,
+    base_url: String,
+    now_millis: fn() -> i64,
     client: reqwest::Client,
 }
 
@@ -24,6 +30,8 @@ pub struct Fox {
 pub struct Fox {
     api_key: String,
     sn: String,
+    base_url: String,
+    now_millis: fn() -> i64,
     client: reqwest::blocking::Client,
 }
 
@@ -37,11 +45,31 @@ impl Fox {
     /// * 'sn' - FoxESS inverter serial number
     /// * 'request_timeout' - Request timeout in seconds
     pub fn new(api_key: &str, sn: &str, request_timeout: u64) -> Result<Self, FoxError> {
+        Self::new_with_base_url(api_key, sn, request_timeout, DEFAULT_REQUEST_DOMAIN)
+    }
+
+    pub fn new_with_base_url(api_key: &str, sn: &str, request_timeout: u64, base_url: &str) -> Result<Self, FoxError> {
+        Self::new_with_base_url_and_clock(api_key, sn, request_timeout, base_url, default_now_millis)
+    }
+
+    pub fn new_with_base_url_and_clock(
+        api_key: &str,
+        sn: &str,
+        request_timeout: u64,
+        base_url: &str,
+        now_millis: fn() -> i64,
+    ) -> Result<Self, FoxError> {
         let client = reqwest::Client::builder()
             .timeout(Duration::from_secs(request_timeout))
             .build()?;
 
-        Ok(Self { api_key: api_key.to_string(), sn: sn.to_string(), client })
+        Ok(Self {
+            api_key: api_key.to_string(),
+            sn: sn.to_string(),
+            base_url: base_url.trim_end_matches('/').to_string(),
+            now_millis,
+            client,
+        })
     }
 
     /// Collect history data from the inverter
@@ -174,11 +202,10 @@ impl Fox {
     /// * path - the API path excluding the domain
     /// * body - a string containing the payload in json format
     async fn post_request(&self, path: &str, body: String) -> Result<String, FoxError> {
-        dbg!("non-blocking post_request: {}", path);
-        let url = format!("{}{}", REQUEST_DOMAIN, path);
+        let url = format!("{}{}", self.base_url, path);
 
-        //let mut req = self.client.post(url);
-        let headers = generate_headers(&self.api_key, &path, Some(vec!(("Content-Type", "application/json"))));
+        let timestamp = (self.now_millis)();
+        let headers = generate_headers_at(&self.api_key, path, timestamp, Some(vec![("Content-Type", "application/json")]));
 
         let req = self.client.post(url)
             .headers(headers)
@@ -210,11 +237,31 @@ impl Fox {
     /// * 'sn' - FoxESS inverter serial number
     /// * 'request_timeout' - Request timeout in seconds
     pub fn new(api_key: &str, sn: &str, request_timeout: u64) -> Result<Self, FoxError> {
+        Self::new_with_base_url(api_key, sn, request_timeout, DEFAULT_REQUEST_DOMAIN)
+    }
+
+    pub fn new_with_base_url(api_key: &str, sn: &str, request_timeout: u64, base_url: &str) -> Result<Self, FoxError> {
+        Self::new_with_base_url_and_clock(api_key, sn, request_timeout, base_url, default_now_millis)
+    }
+
+    pub fn new_with_base_url_and_clock(
+        api_key: &str,
+        sn: &str,
+        request_timeout: u64,
+        base_url: &str,
+        now_millis: fn() -> i64,
+    ) -> Result<Self, FoxError> {
         let client = reqwest::blocking::Client::builder()
             .timeout(Duration::from_secs(request_timeout))
             .build()?;
 
-        Ok(Self { api_key: api_key.to_string(), sn: sn.to_string(), client })
+        Ok(Self {
+            api_key: api_key.to_string(),
+            sn: sn.to_string(),
+            base_url: base_url.trim_end_matches('/').to_string(),
+            now_millis,
+            client,
+        })
     }
 
     /// Collect history data from the inverter
@@ -347,10 +394,10 @@ impl Fox {
     /// * path - the API path excluding the domain
     /// * body - a string containing the payload in json format
     fn post_request(&self, path: &str, body: String) -> Result<String, FoxError> {
-        dbg!("blocking post_request: {}", path);
-        let url = format!("{}{}", REQUEST_DOMAIN, path);
+        let url = format!("{}{}", self.base_url, path);
 
-        let headers = generate_headers(&self.api_key, &path, Some(vec!(("Content-Type", "application/json"))));
+        let timestamp = (self.now_millis)();
+        let headers = generate_headers_at(&self.api_key, path, timestamp, Some(vec![("Content-Type", "application/json")]));
 
         let req = self.client.post(url)
             .headers(headers)
@@ -379,18 +426,17 @@ impl Fox {
 ///
 /// * 'path' - the path, excluding the domain part, to the FoxESS specific API
 /// * 'extra' - any extra headers to add besides FoxCloud standards
-fn generate_headers(api_key: &str, path: &str, extra: Option<Vec<(&str, &str)>>) -> HeaderMap {
+fn generate_headers_at(api_key: &str, path: &str, timestamp_millis: i64, extra: Option<Vec<(&str, &str)>>) -> HeaderMap {
     let mut headers = HeaderMap::new();
 
-    let timestamp = Utc::now().timestamp() * 1000;
-    let signature = format!("{}\\r\\n{}\\r\\n{}", path, api_key, timestamp);
+    let signature = format!("{}\\r\\n{}\\r\\n{}", path, api_key, timestamp_millis);
 
     let mut hasher = Md5::new();
     hasher.update(signature.as_bytes());
     let signature_md5 = hasher.finalize().iter().map(|x| format!("{:02x}", x)).collect::<String>();
 
     headers.insert("token", HeaderValue::from_str(api_key).unwrap());
-    headers.insert("timestamp", HeaderValue::from_str(&timestamp.to_string()).unwrap());
+    headers.insert("timestamp", HeaderValue::from_str(&timestamp_millis.to_string()).unwrap());
     headers.insert("signature", HeaderValue::from_str(&signature_md5).unwrap());
     headers.insert("lang", HeaderValue::from_str("en").unwrap());
 
@@ -427,12 +473,12 @@ fn transform_history_data(input: Vec<DeviceHistoryData>) -> Result<DeviceHistory
         };
 
         // History payload uses f64 values; store as-is.
-        let value = set.data[0].value;
-
-        series
-            .entry(p)
-            .or_insert_with(Vec::new)
-            .push(HistoryDataSet { date_time: utc, data: value });
+        set.data.iter().for_each(
+            |d| series
+                .entry(p)
+                .or_insert_with(Vec::new)
+                .push(HistoryDataSet { date_time: utc, data: d.value })
+        );
     }
 
     Ok(DeviceHistory {
