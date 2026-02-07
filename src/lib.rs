@@ -44,11 +44,15 @@ mod tests {
 
         //println!("{:?} {:?} {:?} {:?}", r.get(FoxVariables::LoadsPower), r.get(FoxVariables::PvPower), r.get_u8_percent(FoxVariables::SoC), r.get_u8_percent(FoxVariables::SoH));
 
-        let r = fox.get_settings(vec![FoxSettings::MaxSetChargeCurrent]).await.unwrap_or_else(|e| {
+        //let r = fox.get_settings(vec![FoxSettings::MaxSetChargeCurrent]).await.unwrap_or_else(|e| {
+        //    panic!("Failed to get device settings: {e}");
+        //});
+
+        //println!("{:?}", r.get_f64(FoxSettings::MaxSetChargeCurrent));
+
+        let _ = fox.set_setting(FoxSettings::MinSocOnGrid, 10).await.unwrap_or_else(|e| {
             panic!("Failed to get device settings: {e}");
         });
-
-        println!("{:?}", r.get_f64(FoxSettings::MaxSetChargeCurrent));
     }
 
     #[cfg(feature = "blocking")]
@@ -72,11 +76,15 @@ mod tests {
 
         //println!("{:?} {:?} {:?} {:?}", r.get(FoxVariables::LoadsPower), r.get(FoxVariables::PvPower), r.get_u8_percent(FoxVariables::SoC), r.get_u8_percent(FoxVariables::SoH));
 
-        let r = fox.get_settings(vec![FoxSettings::MaxSetChargeCurrent]).unwrap_or_else(|e| {
+        //let r = fox.get_settings(vec![FoxSettings::MaxSetChargeCurrent]).unwrap_or_else(|e| {
+        //    panic!("Failed to get device settings: {e}");
+        //});
+
+        //println!("{:?}", r.get_f64(FoxSettings::MaxSetChargeCurrent));
+
+        let r = fox.set_setting(FoxSettings::MinSocOnGrid, 10).unwrap_or_else(|e| {
             panic!("Failed to get device settings: {e}");
         });
-
-        println!("{:?}", r.get_f64(FoxSettings::MaxSetChargeCurrent));
     }
 
     /// Reads a credential from the file system supported by the credstore and

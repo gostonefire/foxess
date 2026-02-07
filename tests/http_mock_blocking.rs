@@ -45,7 +45,7 @@ fn blocking_get_settings_uses_mock_server() {
             .header("Content-Type", "application/json")
             .body(r#"{
                 "errno": 0,
-                "msg": "success",
+                "msg": "Operation successful",
                 "result": { "value": "12.34" }
             }"#);
     });
@@ -54,6 +54,45 @@ fn blocking_get_settings_uses_mock_server() {
     let res = fox.get_settings(vec![FoxSettings::MaxSetChargeCurrent]).unwrap();
 
     assert_eq!(res.get_f64(FoxSettings::MaxSetChargeCurrent).unwrap(), Some(12.34));
+}
+
+#[cfg(feature = "blocking")]
+#[test]
+fn blocking_set_settings_uses_mock_server() {
+    use foxess::{Fox, FoxSettings};
+
+    const API_KEY: &str = "TEST_API_KEY";
+    const SN: &str = "TEST_SN";
+    const TS: i64 = 1_700_000_000_000; // fixed timestamp for deterministic tests
+    const PATH: &str = "/op/v0/device/setting/set";
+
+    fn fixed_now() -> i64 { TS }
+
+
+    let server = MockServer::start();
+    let sig = expected_signature(PATH, API_KEY, TS);
+
+    let _m = server.mock(|when, then| {
+        when.method(POST)
+            .path(PATH)
+            .header("token", API_KEY)
+            .header("timestamp", &TS.to_string())
+            .header("signature", &sig)
+            .header("lang", "en")
+            .header("content-type", "application/json")
+            .json_body_includes(&format!(r#"{{"sn":"{}","key":"MinSocOnGrid","value":"55"}}"#, SN));
+
+        then.status(200)
+            .header("Content-Type", "application/json")
+            .body(r#"{
+                "errno": 0,
+                "msg": "Operation successful",
+                "result": null
+            }"#);
+    });
+
+    let fox = Fox::new_with_base_url_and_clock("TEST_API_KEY", "TEST_SN", 5, &server.base_url(), fixed_now).unwrap();
+    let _ = fox.set_setting(FoxSettings::MinSocOnGrid, 55).unwrap();
 }
 
 #[cfg(feature = "blocking")]
@@ -85,7 +124,7 @@ fn blocking_get_realtime_parses_scientific_notation() {
             .header("Content-Type", "application/json")
             .body(r#"{
                 "errno": 0,
-                "msg": "success",
+                "msg": "Operation successful",
                 "result": [{
                     "datas": [
                         { "variable": "SoC", "value": "9.90E1" },
@@ -121,7 +160,7 @@ fn blocking_get_history_transforms_first_datapoint_only() {
             .header("Content-Type", "application/json")
             .body(r#"{
                 "errno": 0,
-                "msg": "success",
+                "msg": "Operation successful",
                 "result": [{
                     "datas": [{
                         "variable": "pvPower",
@@ -158,9 +197,9 @@ fn blocking_errno_nonzero_maps_to_error() {
         then.status(200)
             .header("Content-Type", "application/json")
             .body(r#"{
-                "errno": 401,
-                "msg": "bad token",
-                "result": { "value": "0" }
+                "errno": 40256,
+                "msg": "The request header parameters are missing",
+                "result": null
             }"#);
     });
 
@@ -169,10 +208,9 @@ fn blocking_errno_nonzero_maps_to_error() {
         .err()
         .expect("get_settings should fail");
 
-    // Keep the assertion broad (string format may change)
     let msg = format!("{err}");
-    assert!(msg.contains("errno"));
-    assert!(msg.contains("bad token"));
+    assert!(msg.contains("40256"));
+    assert!(msg.contains("The request header parameters are missing"));
 }
 
 #[cfg(feature = "blocking")]
