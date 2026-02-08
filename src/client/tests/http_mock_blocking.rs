@@ -275,7 +275,6 @@ fn blocking_get_variable_typed_outside_valid_range() {
         .expect("get_variable_typed should fail");
 
     let msg = format!("{err}");
-    println!("{msg}");
     assert!(msg.contains("value out of range for u8 percentage after rounding"));
 }
 
