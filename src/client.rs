@@ -167,7 +167,7 @@ impl Fox {
     ///
     /// ```rust,ignore
     /// use foxess::Fox;
-    /// use foxess::models::fox_variables::{PvPower, LoadsPower, SoC};
+    /// use foxess::fox_variables::{PvPower, LoadsPower, SoC};
     ///
     /// # async fn demo(fox: Fox) -> Result<(), foxess::FoxError> {
     /// // Pick the variable by choosing the spec type:
@@ -225,7 +225,7 @@ impl Fox {
     ///
     /// ```rust,ignore
     /// use foxess::Fox;
-    /// use foxess::models::fox_settings::{MaxSoc, MinSocOnGrid, WorkMode};
+    /// use foxess::fox_settings::{MaxSoc, MinSocOnGrid, WorkMode};
     ///
     /// # async fn demo(fox: Fox) -> Result<(), foxess::FoxError> {
     /// // Pick the setting by choosing the spec type:
@@ -265,6 +265,8 @@ impl Fox {
     /// - how the typed value is formatted for the API (`S::format`)
     /// - which value type is accepted (`S::Value`)
     ///
+    /// See https://www.foxesscloud.com/public/i18n/en/OpenApiDocument.html#set20the20device20settings20item0a3ca20id3dset20the20device20settings20item4303e203ca3e
+    ///
     /// # Type Parameters
     ///
     /// * `S` - A [`SettableSettingSpec`] describing which setting can be set and how to format it.
@@ -277,7 +279,7 @@ impl Fox {
     ///
     /// ```rust,ignore
     /// use foxess::Fox;
-    /// use foxess::models::fox_settings::{MaxSoc, MinSocOnGrid};
+    /// use foxess::fox_settings::{MaxSoc, MinSocOnGrid};
     ///
     /// # async fn demo(fox: Fox) -> Result<(), foxess::FoxError> {
     /// // Pick the setting by choosing the spec type:
@@ -463,7 +465,7 @@ impl Fox {
     ///
     /// ```rust,ignore
     /// use foxess::Fox;
-    /// use foxess::models::fox_variables::{PvPower, LoadsPower, SoC};
+    /// use foxess::fox_variables::{PvPower, LoadsPower, SoC};
     ///
     /// # async fn demo(fox: Fox) -> Result<(), foxess::FoxError> {
     /// // Pick the variable by choosing the spec type:
@@ -521,7 +523,7 @@ impl Fox {
     ///
     /// ```rust,ignore
     /// use foxess::Fox;
-    /// use foxess::models::fox_settings::{MaxSoc, MinSocOnGrid, WorkMode};
+    /// use foxess::fox_settings::{MaxSoc, MinSocOnGrid, WorkMode};
     ///
     /// # async fn demo(fox: Fox) -> Result<(), foxess::FoxError> {
     /// // Pick the setting by choosing the spec type:
@@ -552,28 +554,6 @@ impl Fox {
         Ok(DeviceSettings { data_points })
     }
 
-    /// Set setting in the inverter
-    ///
-    /// See https://www.foxesscloud.com/public/i18n/en/OpenApiDocument.html#set20the20device20settings20item0a3ca20id3dset20the20device20settings20item4303e203ca3e
-    ///
-    /// # Arguments
-    ///
-    /// * 'setting' - Settings to set in the inverter
-    pub fn set_setting<T: ToString>(&self, setting: FoxSettings, value: T) -> Result<(), FoxError> {
-        if !setting.set_allowed() { return Err(FoxError::UnallowedSetSetting); }
-
-        let path = "/op/v0/device/setting/set";
-
-        let data = value.to_string();
-
-        let req = SetSetting { sn: &self.sn, key: setting.as_str(), value: &data };
-        let req_json = serde_json::to_string(&req)?;
-
-        let _ = self.post_request(&path, req_json)?;
-
-        Ok(())
-    }
-
     /// Set a single inverter setting using a strongly-typed value.
     ///
     /// This is the typed variant of `set_setting`: instead of passing a setting key
@@ -582,6 +562,8 @@ impl Fox {
     /// - which setting key is written (`S::SETTING`)
     /// - how the typed value is formatted for the API (`S::format`)
     /// - which value type is accepted (`S::Value`)
+    ///
+    /// See https://www.foxesscloud.com/public/i18n/en/OpenApiDocument.html#set20the20device20settings20item0a3ca20id3dset20the20device20settings20item4303e203ca3e
     ///
     /// # Type Parameters
     ///
@@ -595,7 +577,7 @@ impl Fox {
     ///
     /// ```rust,ignore
     /// use foxess::Fox;
-    /// use foxess::models::fox_settings::{MaxSoc, MinSocOnGrid};
+    /// use foxess::fox_settings::{MaxSoc, MinSocOnGrid};
     ///
     /// # async fn demo(fox: Fox) -> Result<(), foxess::FoxError> {
     /// // Pick the setting by choosing the spec type:
