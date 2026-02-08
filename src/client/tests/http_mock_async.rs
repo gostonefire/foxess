@@ -59,7 +59,8 @@ async fn async_get_settings_uses_mock_server() {
 #[cfg(feature = "async")]
 #[tokio::test]
 async fn async_get_setting_typed_uses_mock_server() {
-    use crate::{Fox, MinSocOnGrid};
+    use crate::Fox;
+    use crate::fox_settings::MinSocOnGrid;
 
     const API_KEY: &str = "TEST_API_KEY";
     const SN: &str = "TEST_SN";
@@ -101,7 +102,8 @@ async fn async_get_setting_typed_uses_mock_server() {
 #[cfg(feature = "async")]
 #[tokio::test]
 async fn async_set_setting_typed_uses_mock_server() {
-    use crate::{Fox, MinSocOnGrid};
+    use crate::Fox;
+    use crate::fox_settings::MinSocOnGrid;
 
     const API_KEY: &str = "TEST_API_KEY";
     const SN: &str = "TEST_SN";
@@ -186,7 +188,8 @@ async fn async_get_realtime_parses_scientific_notation() {
 #[cfg(feature = "async")]
 #[tokio::test]
 async fn async_get_variable_typed_parses_scientific_notation() {
-    use crate::{Fox, SoC};
+    use crate::Fox;
+    use crate::fox_variables::SoC;
 
     const API_KEY: &str = "TEST_API_KEY";
     const SN: &str = "TEST_SN";
@@ -230,7 +233,8 @@ async fn async_get_variable_typed_parses_scientific_notation() {
 #[cfg(feature = "async")]
 #[tokio::test]
 async fn async_get_variable_typed_outside_valid_range() {
-    use crate::{Fox, SoC};
+    use crate::Fox;
+    use crate::fox_variables::SoC;
 
     const API_KEY: &str = "TEST_API_KEY";
     const SN: &str = "TEST_SN";

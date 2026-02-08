@@ -58,8 +58,9 @@ fn blocking_get_settings_uses_mock_server() {
 
 #[cfg(feature = "blocking")]
 #[test]
-async fn blocking_get_setting_typed_uses_mock_server() {
-    use crate::{Fox, MinSocOnGrid};
+fn blocking_get_setting_typed_uses_mock_server() {
+    use crate::Fox;
+    use crate::models::fox_settings::MinSocOnGrid;
 
     const API_KEY: &str = "TEST_API_KEY";
     const SN: &str = "TEST_SN";
@@ -101,7 +102,8 @@ async fn blocking_get_setting_typed_uses_mock_server() {
 #[cfg(feature = "blocking")]
 #[test]
 fn blocking_set_setting_typed_uses_mock_server() {
-    use crate::{Fox, FoxSettings};
+    use crate::Fox;
+    use crate::models::fox_settings::MinSocOnGrid;
 
     const API_KEY: &str = "TEST_API_KEY";
     const SN: &str = "TEST_SN";
@@ -185,8 +187,9 @@ fn blocking_get_realtime_parses_scientific_notation() {
 
 #[cfg(feature = "blocking")]
 #[test]
-async fn blocking_get_variable_typed_parses_scientific_notation() {
-    use crate::{Fox, SoC};
+fn blocking_get_variable_typed_parses_scientific_notation() {
+    use crate::Fox;
+    use crate::models::fox_variables::SoC;
 
     const API_KEY: &str = "TEST_API_KEY";
     const SN: &str = "TEST_SN";
@@ -229,8 +232,9 @@ async fn blocking_get_variable_typed_parses_scientific_notation() {
 
 #[cfg(feature = "blocking")]
 #[test]
-async fn blocking_get_variable_typed_outside_valid_range() {
-    use crate::{Fox, SoC};
+fn blocking_get_variable_typed_outside_valid_range() {
+    use crate::Fox;
+    use crate::models::fox_variables::SoC;
 
     const API_KEY: &str = "TEST_API_KEY";
     const SN: &str = "TEST_SN";

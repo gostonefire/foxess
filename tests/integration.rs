@@ -2,7 +2,8 @@ extern crate alloc;
 use std::{env, fs};
 use std::path::PathBuf;
 use thiserror::Error;
-use foxess::{Fox, WorkMode, MinSocOnGrid, MaxSetChargeCurrent};
+use foxess::Fox;
+use foxess::fox_settings::{WorkMode, MinSocOnGrid, MaxSetChargeCurrent};
 
 #[cfg(feature = "async")]
 #[tokio::test]

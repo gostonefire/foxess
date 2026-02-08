@@ -9,8 +9,28 @@ compile_error!("Features 'async' and 'blocking' are mutually exclusive. Enable o
 compile_error!("Enable one of the features: 'async' (default) or 'blocking'.");
 
 pub use client::Fox;
+pub use error::FoxError;
 pub use models::FoxVariables;
 pub use models::FoxSettings;
-pub use models::{ExportLimit, MinSocOnGrid, MaxSoc, WorkMode, MaxSetChargeCurrent};
-pub use models::{PvPower, LoadsPower, SoC, SoH};
-pub use error::FoxError;
+
+pub mod fox_settings {
+    pub use crate::models::fox_settings::{
+        ExportLimit,
+        MinSocOnGrid,
+        MaxSoc,
+        WorkMode,
+        MaxSetChargeCurrent,
+        SettingSpec,
+        SettableSettingSpec,
+    };
+}
+
+pub mod fox_variables {
+    pub use crate::models::fox_variables::{
+        PvPower,
+        LoadsPower,
+        SoC,
+        SoH,
+        VariableSpec,
+    };
+}
