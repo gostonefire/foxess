@@ -2,7 +2,7 @@ extern crate alloc;
 use std::{env, fs};
 use std::path::PathBuf;
 use thiserror::Error;
-use foxess::{Fox, FoxSettings};
+use foxess::{Fox, WorkMode, MinSocOnGrid, MaxSetChargeCurrent};
 
 #[cfg(feature = "async")]
 #[tokio::test]
@@ -18,21 +18,18 @@ async fn it_works() {
         panic!("Failed to create Fox instance: {e}");
     });
 
-    //let parameters = vec![FoxVariables::PvPower, FoxVariables::LoadsPower, FoxVariables::SoC, FoxVariables::SoH];
-    //let r = fox.get_device_real_time_data(parameters).await.unwrap_or_else(|e| {
-    //    panic!("Failed to get device real time data: {e}");
-    //});
-
-    //println!("{:?} {:?} {:?} {:?}", r.get(FoxVariables::LoadsPower), r.get(FoxVariables::PvPower), r.get_u8_percent(FoxVariables::SoC), r.get_u8_percent(FoxVariables::SoH));
-
-    //let r = fox.get_settings(vec![FoxSettings::MaxSetChargeCurrent]).await.unwrap_or_else(|e| {
-    //    panic!("Failed to get device settings: {e}");
-    //});
-
-    //println!("{:?}", r.get_f64(FoxSettings::MaxSetChargeCurrent));
-
-    let _ = fox.set_setting(FoxSettings::MinSocOnGrid, 10).await.unwrap_or_else(|e| {
+    let work_mode = fox.get_setting_typed::<WorkMode>().await.unwrap_or_else(|e| {
         panic!("Failed to get device settings: {e}");
+    });
+    println!("{}", work_mode);
+
+    let max_set_charge_current = fox.get_setting_typed::<MaxSetChargeCurrent>().await.unwrap_or_else(|e| {
+        panic!("Failed to get device settings: {e}");
+    });
+    println!("{:?}", max_set_charge_current);
+
+    let _ = fox.set_setting_typed::<MinSocOnGrid>(10).await.unwrap_or_else(|e| {
+        panic!("Failed to set device settings: {e}");
     });
 }
 
@@ -50,21 +47,18 @@ fn it_works() {
         panic!("Failed to create Fox instance: {e}");
     });
 
-    //let parameters = vec![FoxVariables::PvPower, FoxVariables::LoadsPower, FoxVariables::SoC, FoxVariables::SoH];
-    //let r = fox.get_device_real_time_data(parameters).unwrap_or_else(|e| {
-    //    panic!("Failed to get device real time data: {e}");
-    //});
-
-    //println!("{:?} {:?} {:?} {:?}", r.get(FoxVariables::LoadsPower), r.get(FoxVariables::PvPower), r.get_u8_percent(FoxVariables::SoC), r.get_u8_percent(FoxVariables::SoH));
-
-    //let r = fox.get_settings(vec![FoxSettings::MaxSetChargeCurrent]).unwrap_or_else(|e| {
-    //    panic!("Failed to get device settings: {e}");
-    //});
-
-    //println!("{:?}", r.get_f64(FoxSettings::MaxSetChargeCurrent));
-
-    let r = fox.set_setting(FoxSettings::MinSocOnGrid, 10).unwrap_or_else(|e| {
+    let work_mode = fox.get_setting_typed::<WorkMode>().unwrap_or_else(|e| {
         panic!("Failed to get device settings: {e}");
+    });
+    println!("{}", work_mode);
+
+    let max_set_charge_current = fox.get_setting_typed::<MaxSetChargeCurrent>().unwrap_or_else(|e| {
+        panic!("Failed to get device settings: {e}");
+    });
+    println!("{:?}", max_set_charge_current);
+
+    let _ = fox.set_setting_typed::<MinSocOnGrid>(10).unwrap_or_else(|e| {
+        panic!("Failed to set device settings: {e}");
     });
 }
 

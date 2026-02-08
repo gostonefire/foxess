@@ -58,7 +58,49 @@ fn blocking_get_settings_uses_mock_server() {
 
 #[cfg(feature = "blocking")]
 #[test]
-fn blocking_set_settings_uses_mock_server() {
+async fn blocking_get_setting_typed_uses_mock_server() {
+    use crate::{Fox, MinSocOnGrid};
+
+    const API_KEY: &str = "TEST_API_KEY";
+    const SN: &str = "TEST_SN";
+    const TS: i64 = 1_700_000_000_000; // fixed timestamp for deterministic tests
+    const PATH: &str = "/op/v0/device/setting/get";
+
+    fn fixed_now() -> i64 { TS }
+
+
+    let server = MockServer::start();
+    let sig = expected_signature(PATH, API_KEY, TS);
+
+    let _m = server.mock(|when, then| {
+        when.method(POST)
+            .path(PATH)
+            .header("token", API_KEY)
+            .header("timestamp", &TS.to_string())
+            .header("signature", &sig)
+            .header("lang", "en")
+            .header("content-type", "application/json")
+            .json_body_includes(&format!(r#"{{"sn":"{}"}}"#, SN))
+            .json_body_includes(r#"{"key":"MinSocOnGrid"}"#);
+
+        then.status(200)
+            .header("Content-Type", "application/json")
+            .body(r#"{
+                "errno": 0,
+                "msg": "Operation successful",
+                "result": { "value": "55" }
+            }"#);
+    });
+
+    let fox = Fox::new_with_base_url_and_clock("TEST_API_KEY", "TEST_SN", 5, &server.base_url(), fixed_now).unwrap();
+    let res = fox.get_setting_typed::<MinSocOnGrid>().unwrap();
+
+    assert_eq!(res, 55);
+}
+
+#[cfg(feature = "blocking")]
+#[test]
+fn blocking_set_setting_typed_uses_mock_server() {
     use crate::{Fox, FoxSettings};
 
     const API_KEY: &str = "TEST_API_KEY";
@@ -92,7 +134,7 @@ fn blocking_set_settings_uses_mock_server() {
     });
 
     let fox = Fox::new_with_base_url_and_clock("TEST_API_KEY", "TEST_SN", 5, &server.base_url(), fixed_now).unwrap();
-    let _ = fox.set_setting(FoxSettings::MinSocOnGrid, 55).unwrap();
+    let _ = fox.set_setting_typed::<MinSocOnGrid>(55).unwrap();
 }
 
 #[cfg(feature = "blocking")]
@@ -139,6 +181,98 @@ fn blocking_get_realtime_parses_scientific_notation() {
 
     assert_eq!(res.get_u8_percent(FoxVariables::SoC), Some(99));
     assert_eq!(res.get(FoxVariables::PvPower), Some(123.0));
+}
+
+#[cfg(feature = "blocking")]
+#[test]
+async fn blocking_get_variable_typed_parses_scientific_notation() {
+    use crate::{Fox, SoC};
+
+    const API_KEY: &str = "TEST_API_KEY";
+    const SN: &str = "TEST_SN";
+    const TS: i64 = 1_700_000_000_000;
+    const PATH: &str = "/op/v1/device/real/query";
+
+    fn fixed_now() -> i64 { TS }
+
+    let server = MockServer::start();
+    let sig = expected_signature(PATH, API_KEY, TS);
+
+    let _m = server.mock(|when, then| {
+        when.method(POST)
+            .path(PATH)
+            .header("token", API_KEY)
+            .header("timestamp", &TS.to_string())
+            .header("signature", &sig)
+            .header("lang", "en")
+            .header("content-type", "application/json")
+            .json_body_includes(&format!(r#"{{"sns":["{}"]}}"#, SN));
+
+        then.status(200)
+            .header("Content-Type", "application/json")
+            .body(r#"{
+                "errno": 0,
+                "msg": "Operation successful",
+                "result": [{
+                    "datas": [
+                        { "variable": "SoC", "value": "9.90E1" }
+                    ]
+                }]
+            }"#);
+    });
+
+    let fox = Fox::new_with_base_url_and_clock("TEST_API_KEY", "TEST_SN", 5, &server.base_url(), fixed_now).unwrap();
+    let res = fox.get_variable_typed::<SoC>().unwrap();
+
+    assert_eq!(res, 99);
+}
+
+#[cfg(feature = "blocking")]
+#[test]
+async fn blocking_get_variable_typed_outside_valid_range() {
+    use crate::{Fox, SoC};
+
+    const API_KEY: &str = "TEST_API_KEY";
+    const SN: &str = "TEST_SN";
+    const TS: i64 = 1_700_000_000_000;
+    const PATH: &str = "/op/v1/device/real/query";
+
+    fn fixed_now() -> i64 { TS }
+
+    let server = MockServer::start();
+    let sig = expected_signature(PATH, API_KEY, TS);
+
+    let _m = server.mock(|when, then| {
+        when.method(POST)
+            .path(PATH)
+            .header("token", API_KEY)
+            .header("timestamp", &TS.to_string())
+            .header("signature", &sig)
+            .header("lang", "en")
+            .header("content-type", "application/json")
+            .json_body_includes(&format!(r#"{{"sns":["{}"]}}"#, SN));
+
+        then.status(200)
+            .header("Content-Type", "application/json")
+            .body(r#"{
+                "errno": 0,
+                "msg": "Operation successful",
+                "result": [{
+                    "datas": [
+                        { "variable": "SoC", "value": "110" }
+                    ]
+                }]
+            }"#);
+    });
+
+    let fox = Fox::new_with_base_url_and_clock("TEST_API_KEY", "TEST_SN", 5, &server.base_url(), fixed_now).unwrap();
+    let err = fox.get_variable_typed::<SoC>()
+        .err()
+        .expect("get_variable_typed should fail");
+
+    let msg = format!("{err}");
+    println!("{msg}");
+    assert!(msg.contains("value out of range for u8 percentage after rounding"));
 }
 
 #[cfg(feature = "blocking")]

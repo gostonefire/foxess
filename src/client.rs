@@ -256,28 +256,6 @@ impl Fox {
         Ok(DeviceSettings { data_points })
     }
 
-    /// Set setting in the inverter
-    ///
-    /// See https://www.foxesscloud.com/public/i18n/en/OpenApiDocument.html#set20the20device20settings20item0a3ca20id3dset20the20device20settings20item4303e203ca3e
-    ///
-    /// # Arguments
-    ///
-    /// * 'setting' - Settings to set in the inverter
-    pub async fn set_setting<T: ToString>(&self, setting: FoxSettings, value: T) -> Result<(), FoxError> {
-        if !setting.set_allowed() { return Err(FoxError::UnallowedSetSetting); }
-        
-        let path = "/op/v0/device/setting/set";
-
-        let data = value.to_string();
-
-        let req = SetSetting { sn: &self.sn, key: setting.as_str(), value: &data };
-        let req_json = serde_json::to_string(&req)?;
-
-        let _ = self.post_request(&path, req_json).await?;
-        
-        Ok(())
-    }
-
     /// Set a single inverter setting using a strongly-typed value.
     ///
     /// This is the typed variant of `set_setting`: instead of passing a setting key
