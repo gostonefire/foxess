@@ -1,13 +1,9 @@
 use std::collections::HashMap;
-use std::str::FromStr;
 use std::time::Duration;
 use chrono::{DateTime, Utc};
-use md5::{Digest, Md5};
-use reqwest::header::{HeaderMap, HeaderName, HeaderValue};
-use serde::{Deserialize, Serialize};
+use crate::client::helper::FoxHelper;
 use crate::error::FoxError;
-use crate::models::{VariableDataPoint, HistoryDataSet, DeviceHistory, DeviceRealTime, FoxVariables};
-use crate::models::dto::{DeviceHistoryData, DeviceHistoryResult, DeviceRealTimeResult, DeviceSettingsResult, RequestDeviceHistoryData, RequestDeviceRealTimeData, RequestSettingsData, SetSetting};
+use crate::models::{DeviceHistory, DeviceRealTime, FoxVariables};
 use crate::models::fox_settings::{FoxSettings, SettableSettingSpec, SettingSpec};
 use crate::models::fox_variables::VariableSpec;
 use crate::models::settings::{DeviceSettings, SettingsDataPoint};
@@ -20,20 +16,14 @@ fn default_now_millis() -> i64 {
 
 #[cfg(feature = "async")]
 pub struct Fox {
-    api_key: String,
-    sn: String,
-    base_url: String,
-    now_millis: fn() -> i64,
     client: reqwest::Client,
+    fox_helper: FoxHelper,
 }
 
 #[cfg(feature = "blocking")]
 pub struct Fox {
-    api_key: String,
-    sn: String,
-    base_url: String,
-    now_millis: fn() -> i64,
     client: reqwest::blocking::Client,
+    fox_helper: FoxHelper,
 }
 
 #[cfg(feature = "async")]
@@ -70,11 +60,8 @@ impl Fox {
             .build()?;
 
         Ok(Self {
-            api_key: api_key.to_string(),
-            sn: sn.to_string(),
-            base_url: base_url.trim_end_matches('/').to_string(),
-            now_millis,
             client,
+            fox_helper: FoxHelper::new(api_key, sn, base_url.trim_end_matches('/'), now_millis),
         })
     }
 
@@ -88,23 +75,11 @@ impl Fox {
     /// * 'end' - the end time of the report
     /// * 'variables' - List of variables to retrieve from the inverter
     pub async fn get_device_history_data(&self, start: DateTime<Utc>, end: DateTime<Utc>, parameters: Vec<FoxVariables>) -> Result<DeviceHistory, FoxError> {
-        let path = "/op/v0/device/history/query";
-
-        let req = RequestDeviceHistoryData {
-            sn: &self.sn,
-            variables: parameters.iter().map(|p| p.as_str()).collect(),
-            begin: start.timestamp_millis(),
-            end: end.timestamp_millis(),
-        };
-
-        let req_json = serde_json::to_string(&req)?;
+        let (req_json, path) = self.fox_helper.pre_get_device_history_data(start, end, parameters)?;
 
         let json = self.post_request(&path, req_json).await?;
 
-        let fox_data: DeviceHistoryResult = serde_json::from_str(&json)?;
-        let device_history = transform_history_data(fox_data.result)?;
-
-        Ok(device_history)
+        Ok(self.fox_helper.post_get_device_history_data(&json)?)
     }
 
     /// Collect real-time data from the inverter
@@ -115,39 +90,11 @@ impl Fox {
     ///
     /// * 'variables' - List of variables to retrieve from the inverter
     pub async fn get_device_real_time_data(&self, variables: Vec<FoxVariables>) -> Result<DeviceRealTime, FoxError> {
-        let path = "/op/v1/device/real/query";
-
-        let req = RequestDeviceRealTimeData {
-            variables: variables.iter().map(|p| p.as_str()).collect(),
-            sns: vec![&self.sn],
-        };
-
-        let req_json = serde_json::to_string(&req)?;
+        let (req_json, path) = self.fox_helper.pre_get_device_real_time_data(variables)?;
 
         let json = self.post_request(&path, req_json).await?;
 
-        let fox_data: DeviceRealTimeResult = serde_json::from_str(&json)?;
-
-        let mut data_points: HashMap<FoxVariables, VariableDataPoint> = HashMap::new();
-
-        // Be defensive: Fox API returns a Vec; can't assume [0] exists.
-        let Some(first) = fox_data.result.first() else {
-            return Ok(DeviceRealTime {
-                data_points,
-            });
-        };
-
-        for data in first.datas.iter() {
-            // Only accept variables that are part of FoxParameter.
-            let Ok(p) = FoxVariables::from_str(data.variable.as_str()) else {
-                continue;
-            };
-
-            let value = data.value;
-            data_points.insert(p, VariableDataPoint(value));
-        }
-
-        Ok(DeviceRealTime { data_points })
+        Ok(self.fox_helper.post_get_device_real_time_data(&json)?)
     }
 
     /// Get a single inverter variable, parsed into a strongly-typed value.
@@ -195,17 +142,11 @@ impl Fox {
     ///
     /// * 'setting' - List of settings to retrieve from the inverter
     async fn get_setting(&self, setting: FoxSettings) -> Result<String, FoxError> {
-        let path = "/op/v0/device/setting/get";
-
-        let req = RequestSettingsData { sn: &self.sn, key: setting.as_str() };
-
-        let req_json = serde_json::to_string(&req)?;
+        let (req_json, path) = self.fox_helper.pre_get_setting(setting)?;
 
         let json = self.post_request(&path, req_json).await?;
 
-        let fox_data: DeviceSettingsResult = serde_json::from_str(&json)?;
-
-        Ok(fox_data.result.value)
+        Ok(self.fox_helper.post_get_setting(&json)?)
     }
 
     /// Get a single inverter setting, parsed into a strongly-typed value.
@@ -289,13 +230,10 @@ impl Fox {
     /// # }
     /// ```
     pub async fn set_setting_typed<S: SettableSettingSpec>(&self, value: S::Value) -> Result<(), FoxError> {
-        let path = "/op/v0/device/setting/set";
-        let data = S::format(&value);
-
-        let req = SetSetting { sn: &self.sn, key: S::SETTING.as_str(), value: &data };
-        let req_json = serde_json::to_string(&req)?;
+        let (req_json, path) = self.fox_helper.pre_set_setting_typed::<S>(value)?;
 
         let _ = self.post_request(&path, req_json).await?;
+
         Ok(())
     }
 
@@ -308,10 +246,7 @@ impl Fox {
     /// * path - the API path excluding the domain
     /// * body - a string containing the payload in json format
     async fn post_request(&self, path: &str, body: String) -> Result<String, FoxError> {
-        let url = format!("{}{}", self.base_url, path);
-
-        let timestamp = (self.now_millis)();
-        let headers = generate_headers_at(&self.api_key, path, timestamp, Some(vec![("Content-Type", "application/json")]));
+        let (url, headers) = self.fox_helper.pre_network_post_request(path);
 
         let req = self.client.post(url)
             .headers(headers)
@@ -323,13 +258,7 @@ impl Fox {
             return Err(FoxError::FoxCloud(format!("{:?}", status)));
         }
 
-        let json = req.text().await?;
-        let fox_res: FoxResponse = serde_json::from_str(&json)?;
-        if fox_res.errno != 0 {
-            return Err(FoxError::FoxCloud(format!("errno: {}, msg: {}", fox_res.errno, fox_res.msg)));
-        }
-
-        Ok(json)
+        Ok(self.fox_helper.post_network_post_request(req.text().await?)?)
     }
 }
 
@@ -368,11 +297,8 @@ impl Fox {
             .build()?;
 
         Ok(Self {
-            api_key: api_key.to_string(),
-            sn: sn.to_string(),
-            base_url: base_url.trim_end_matches('/').to_string(),
-            now_millis,
             client,
+            fox_helper: FoxHelper::new(api_key, sn, base_url.trim_end_matches('/'), now_millis),
         })
     }
 
@@ -386,23 +312,11 @@ impl Fox {
     /// * 'end' - the end time of the report
     /// * 'variables' - List of variables to retrieve from the inverter
     pub fn get_device_history_data(&self, start: DateTime<Utc>, end: DateTime<Utc>, parameters: Vec<FoxVariables>) -> Result<DeviceHistory, FoxError> {
-        let path = "/op/v0/device/history/query";
-
-        let req = RequestDeviceHistoryData {
-            sn: &self.sn,
-            variables: parameters.iter().map(|p| p.as_str()).collect(),
-            begin: start.timestamp_millis(),
-            end: end.timestamp_millis(),
-        };
-
-        let req_json = serde_json::to_string(&req)?;
+        let (req_json, path) = self.fox_helper.pre_get_device_history_data(start, end, parameters)?;
 
         let json = self.post_request(&path, req_json)?;
 
-        let fox_data: DeviceHistoryResult = serde_json::from_str(&json)?;
-        let device_history = transform_history_data(fox_data.result)?;
-
-        Ok(device_history)
+        Ok(self.fox_helper.post_get_device_history_data(&json)?)
     }
 
     /// Collect real-time data from the inverter
@@ -413,39 +327,11 @@ impl Fox {
     ///
     /// * 'variables' - List of variables to retrieve from the inverter
     pub fn get_device_real_time_data(&self, variables: Vec<FoxVariables>) -> Result<DeviceRealTime, FoxError> {
-        let path = "/op/v1/device/real/query";
-
-        let req = RequestDeviceRealTimeData {
-            variables: variables.iter().map(|p| p.as_str()).collect(),
-            sns: vec![&self.sn],
-        };
-
-        let req_json = serde_json::to_string(&req)?;
+        let (req_json, path) = self.fox_helper.pre_get_device_real_time_data(variables)?;
 
         let json = self.post_request(&path, req_json)?;
 
-        let fox_data: DeviceRealTimeResult = serde_json::from_str(&json)?;
-
-        let mut data_points: HashMap<FoxVariables, VariableDataPoint> = HashMap::new();
-
-        // Be defensive: Fox API returns a Vec; can't assume [0] exists.
-        let Some(first) = fox_data.result.first() else {
-            return Ok(DeviceRealTime {
-                data_points,
-            });
-        };
-
-        for data in first.datas.iter() {
-            // Only accept variables that are part of FoxParameter.
-            let Ok(p) = FoxVariables::from_str(data.variable.as_str()) else {
-                continue;
-            };
-
-            let value = data.value;
-            data_points.insert(p, VariableDataPoint(value));
-        }
-
-        Ok(DeviceRealTime { data_points })
+        Ok(self.fox_helper.post_get_device_real_time_data(&json)?)
     }
 
     /// Get a single inverter variable, parsed into a strongly-typed value.
@@ -493,17 +379,11 @@ impl Fox {
     ///
     /// * 'setting' - List of settings to retrieve from the inverter
     fn get_setting(&self, setting: FoxSettings) -> Result<String, FoxError> {
-        let path = "/op/v0/device/setting/get";
-
-        let req = RequestSettingsData { sn: &self.sn, key: setting.as_str() };
-
-        let req_json = serde_json::to_string(&req)?;
+        let (req_json, path) = self.fox_helper.pre_get_setting(setting)?;
 
         let json = self.post_request(&path, req_json)?;
 
-        let fox_data: DeviceSettingsResult = serde_json::from_str(&json)?;
-
-        Ok(fox_data.result.value)
+        Ok(self.fox_helper.post_get_setting(&json)?)
     }
 
     /// Get a single inverter setting, parsed into a strongly-typed value.
@@ -587,13 +467,10 @@ impl Fox {
     /// # }
     /// ```
     pub fn set_setting_typed<S: SettableSettingSpec>(&self, value: S::Value) -> Result<(), FoxError> {
-        let path = "/op/v0/device/setting/set";
-        let data = S::format(&value);
-
-        let req = SetSetting { sn: &self.sn, key: S::SETTING.as_str(), value: &data };
-        let req_json = serde_json::to_string(&req)?;
+        let (req_json, path) = self.fox_helper.pre_set_setting_typed::<S>(value)?;
 
         let _ = self.post_request(&path, req_json)?;
+
         Ok(())
     }
 
@@ -606,10 +483,7 @@ impl Fox {
     /// * path - the API path excluding the domain
     /// * body - a string containing the payload in json format
     fn post_request(&self, path: &str, body: String) -> Result<String, FoxError> {
-        let url = format!("{}{}", self.base_url, path);
-
-        let timestamp = (self.now_millis)();
-        let headers = generate_headers_at(&self.api_key, path, timestamp, Some(vec![("Content-Type", "application/json")]));
+        let (url, headers) = self.fox_helper.pre_network_post_request(path);
 
         let req = self.client.post(url)
             .headers(headers)
@@ -621,98 +495,10 @@ impl Fox {
             return Err(FoxError::FoxCloud(format!("{:?}", status)));
         }
 
-        let json = req.text()?;
-        let fox_res: FoxResponse = serde_json::from_str(&json)?;
-        if fox_res.errno != 0 {
-            return Err(FoxError::FoxCloud(format!("errno: {}, msg: {}", fox_res.errno, fox_res.msg)));
-        }
-
-        Ok(json)
+        Ok(self.fox_helper.post_network_post_request(req.text()?)?)
     }
-}
-
-/// Generates http headers required by Fox Open API, this includes also building a
-/// md5 hashed signature.
-///
-/// # Arguments
-///
-/// * 'path' - the path, excluding the domain part, to the FoxESS specific API
-/// * 'extra' - any extra headers to add besides FoxCloud standards
-fn generate_headers_at(api_key: &str, path: &str, timestamp_millis: i64, extra: Option<Vec<(&str, &str)>>) -> HeaderMap {
-    let mut headers = HeaderMap::new();
-
-    let signature = format!("{}\\r\\n{}\\r\\n{}", path, api_key, timestamp_millis);
-
-    let mut hasher = Md5::new();
-    hasher.update(signature.as_bytes());
-    let signature_md5 = hasher.finalize().iter().map(|x| format!("{:02x}", x)).collect::<String>();
-
-    headers.insert("token", HeaderValue::from_str(api_key).unwrap());
-    headers.insert("timestamp", HeaderValue::from_str(&timestamp_millis.to_string()).unwrap());
-    headers.insert("signature", HeaderValue::from_str(&signature_md5).unwrap());
-    headers.insert("lang", HeaderValue::from_str("en").unwrap());
-
-    if let Some(h) = extra {
-        h.iter().for_each(|&(k, v)| {
-            headers.insert(HeaderName::from_str(k).unwrap(), HeaderValue::from_str(v).unwrap());
-        });
-    }
-
-    headers
-}
-
-/// Transforms device history data to a format easier to save as non-json file
-///
-/// # Arguments
-///
-/// * 'input' - the data to transform
-fn transform_history_data(input: Vec<DeviceHistoryData>) -> Result<DeviceHistory, FoxError> {
-    let mut series: HashMap<FoxVariables, Vec<HistoryDataSet<f64>>> = HashMap::new();
-
-    // Be defensive: Fox API returns a Vec; can't assume [0] exists.
-    let Some(first) = input.first() else {
-        return Ok(DeviceHistory {
-            series,
-        });
-    };
-
-    for set in &first.data_set {
-        let utc = cet_to_utc(&set.data[0].time)?;
-
-        // Only accept variables that are part of FoxParameter.
-        let Ok(p) = FoxVariables::from_str(set.variable.as_str()) else {
-            continue;
-        };
-
-        // History payload uses f64 values; store as-is.
-        set.data.iter().for_each(
-            |d| series
-                .entry(p)
-                .or_insert_with(Vec::new)
-                .push(HistoryDataSet { date_time: utc, data: d.value })
-        );
-    }
-
-    Ok(DeviceHistory {
-        series,
-    })
-}
-
-/// Converts a date time string in special Fox format to UTC
-///
-/// # Arguments
-///
-/// * 'time' - date time string in 2025-12-03 00:08:51 CET+0100 format
-fn cet_to_utc(time: &str) -> Result<DateTime<Utc>, FoxError> {
-    let dt = DateTime::parse_from_str(&time.replace("+", " +"), "%Y-%m-%d %H:%M:%S %Z %z")?;
-    Ok(dt.with_timezone(&Utc))
-}
-
-#[derive(Serialize, Deserialize)]
-struct FoxResponse {
-    errno: u32,
-    msg: String,
 }
 
 #[cfg(test)]
 mod tests;
+mod helper;
