@@ -8,7 +8,8 @@ use serde::{Deserialize, Serialize};
 use crate::error::FoxError;
 use crate::models::{VariableDataPoint, HistoryDataSet, DeviceHistory, DeviceRealTime, FoxVariables};
 use crate::models::dto::{DeviceHistoryData, DeviceHistoryResult, DeviceRealTimeResult, DeviceSettingsResult, RequestDeviceHistoryData, RequestDeviceRealTimeData, RequestSettingsData, SetSetting};
-use crate::models::fox_settings::FoxSettings;
+use crate::models::fox_settings::{FoxSettings, SettableSettingSpec, SettingSpec};
+use crate::models::fox_variables::VariableSpec;
 use crate::models::settings::{DeviceSettings, SettingsDataPoint};
 
 const DEFAULT_REQUEST_DOMAIN: &str = "https://www.foxesscloud.com";
@@ -149,28 +150,107 @@ impl Fox {
         Ok(DeviceRealTime { data_points })
     }
 
-    /// Get settings from the inverter
+    /// Get a single inverter variable, parsed into a strongly-typed value.
+    ///
+    /// This is the typed variant of `get_variables`: instead of passing a variable key
+    /// as an argument, you choose a *variable spec type* `S` that implements
+    /// [`VariableSpec`]. The spec determines:
+    /// - which variable key is fetched (`S::VARIABLE`)
+    /// - how the raw data (f64) is cast (`S::into`)
+    /// - the return type (`S::Value`)
+    ///
+    /// # Type Parameters
+    ///
+    /// * `S` - A [`VariableSpec`] describing which variable to read and how to cast it.
+    ///
+    /// # Examples
+    ///
+    /// ```rust,ignore
+    /// use foxess::Fox;
+    /// use foxess::models::fox_variables::{PvPower, LoadsPower, SoC};
+    ///
+    /// # async fn demo(fox: Fox) -> Result<(), foxess::FoxError> {
+    /// // Pick the variable by choosing the spec type:
+    /// let pv_power: f64 = fox.get_variable_typed::<PvPower>().await?;
+    /// let loads_power: f64 = fox.get_variable_typed::<LoadsPower>().await?;
+    /// let soc: u8 = fox.get_variable_typed::<SoC>().await?;
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub async fn get_variable_typed<S: VariableSpec>(&self) -> Result<S::Value, FoxError> {
+        let data = self.get_device_real_time_data(vec![S::VARIABLE]).await?
+            .get(S::VARIABLE)
+            .ok_or(FoxError::VariableNotFoundError {
+                variable: S::VARIABLE.as_str(),
+            })?;
+
+        S::into(data)
+    }
+
+    /// Get setting from the inverter
     ///
     /// See https://www.foxesscloud.com/public/i18n/en/OpenApiDocument.html#get20the20device20settings20item0a3ca20id3dget20the20device20settings20item4303e203ca3e
     ///
     /// # Arguments
     ///
-    /// * 'settings' - List of settings to retrieve from the inverter
-    pub async fn get_settings(&self, settings: Vec<FoxSettings>) -> Result<DeviceSettings, FoxError> {
+    /// * 'setting' - List of settings to retrieve from the inverter
+    async fn get_setting(&self, setting: FoxSettings) -> Result<String, FoxError> {
         let path = "/op/v0/device/setting/get";
 
+        let req = RequestSettingsData { sn: &self.sn, key: setting.as_str() };
+
+        let req_json = serde_json::to_string(&req)?;
+
+        let json = self.post_request(&path, req_json).await?;
+
+        let fox_data: DeviceSettingsResult = serde_json::from_str(&json)?;
+
+        Ok(fox_data.result.value)
+    }
+
+    /// Get a single inverter setting, parsed into a strongly-typed value.
+    ///
+    /// This is the typed variant of `get_setting`: instead of passing a setting key
+    /// as an argument, you choose a *setting spec type* `S` that implements
+    /// [`SettingSpec`]. The spec determines:
+    /// - which setting key is fetched (`S::SETTING`)
+    /// - how the raw string value is parsed (`S::parse`)
+    /// - the return type (`S::Value`)
+    ///
+    /// # Type Parameters
+    ///
+    /// * `S` - A [`SettingSpec`] describing which setting to read and how to parse it.
+    ///
+    /// # Examples
+    ///
+    /// ```rust,ignore
+    /// use foxess::Fox;
+    /// use foxess::models::fox_settings::{MaxSoc, MinSocOnGrid, WorkMode};
+    ///
+    /// # async fn demo(fox: Fox) -> Result<(), foxess::FoxError> {
+    /// // Pick the setting by choosing the spec type:
+    /// let max_soc: u8 = fox.get_setting_typed::<MaxSoc>().await?;
+    /// let min_soc: u8 = fox.get_setting_typed::<MinSocOnGrid>().await?;
+    /// let work_mode: String = fox.get_setting_typed::<WorkMode>().await?;
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub async fn get_setting_typed<S: SettingSpec>(&self) -> Result<S::Value, FoxError> {
+        let raw = self.get_setting(S::SETTING).await?;
+        S::parse(raw)
+    }
+
+    /// Get settings from the inverter
+    ///
+    /// # Arguments
+    ///
+    /// * 'settings' - List of settings to retrieve from the inverter
+    pub async fn get_settings(&self, settings: Vec<FoxSettings>) -> Result<DeviceSettings, FoxError> {
         let mut data_points: HashMap<FoxSettings, SettingsDataPoint> = HashMap::new();
 
         for s in settings.iter() {
-            let req = RequestSettingsData { sn: &self.sn, key: s.as_str() };
-
-            let req_json = serde_json::to_string(&req)?;
-
-            let json = self.post_request(&path, req_json).await?;
-
-            let fox_data: DeviceSettingsResult = serde_json::from_str(&json)?;
-
-            data_points.insert(*s, SettingsDataPoint(fox_data.result.value));
+            let data = self.get_setting(*s).await?;
+            data_points.insert(*s, SettingsDataPoint(data));
         }
 
         Ok(DeviceSettings { data_points })
@@ -195,6 +275,47 @@ impl Fox {
 
         let _ = self.post_request(&path, req_json).await?;
         
+        Ok(())
+    }
+
+    /// Set a single inverter setting using a strongly-typed value.
+    ///
+    /// This is the typed variant of `set_setting`: instead of passing a setting key
+    /// as an argument, you choose a *setting spec type* `S` that implements
+    /// [`SettableSettingSpec`]. The spec determines:
+    /// - which setting key is written (`S::SETTING`)
+    /// - how the typed value is formatted for the API (`S::format`)
+    /// - which value type is accepted (`S::Value`)
+    ///
+    /// # Type Parameters
+    ///
+    /// * `S` - A [`SettableSettingSpec`] describing which setting can be set and how to format it.
+    ///
+    /// # Arguments
+    ///
+    /// * `value` - The new value for `S::SETTING` (type `S::Value`).
+    ///
+    /// # Examples
+    ///
+    /// ```rust,ignore
+    /// use foxess::Fox;
+    /// use foxess::models::fox_settings::{MaxSoc, MinSocOnGrid};
+    ///
+    /// # async fn demo(fox: Fox) -> Result<(), foxess::FoxError> {
+    /// // Pick the setting by choosing the spec type:
+    /// fox.set_setting_typed::<MaxSoc>(90).await?;
+    /// fox.set_setting_typed::<MinSocOnGrid>(20).await?;
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub async fn set_setting_typed<S: SettableSettingSpec>(&self, value: S::Value) -> Result<(), FoxError> {
+        let path = "/op/v0/device/setting/set";
+        let data = S::format(&value);
+
+        let req = SetSetting { sn: &self.sn, key: S::SETTING.as_str(), value: &data };
+        let req_json = serde_json::to_string(&req)?;
+
+        let _ = self.post_request(&path, req_json).await?;
         Ok(())
     }
 
@@ -347,28 +468,107 @@ impl Fox {
         Ok(DeviceRealTime { data_points })
     }
 
-    /// Get settings from the inverter
+    /// Get a single inverter variable, parsed into a strongly-typed value.
+    ///
+    /// This is the typed variant of `get_variables`: instead of passing a variable key
+    /// as an argument, you choose a *variable spec type* `S` that implements
+    /// [`VariableSpec`]. The spec determines:
+    /// - which variable key is fetched (`S::VARIABLE`)
+    /// - how the raw data (f64) is cast (`S::into`)
+    /// - the return type (`S::Value`)
+    ///
+    /// # Type Parameters
+    ///
+    /// * `S` - A [`VariableSpec`] describing which variable to read and how to cast it.
+    ///
+    /// # Examples
+    ///
+    /// ```rust,ignore
+    /// use foxess::Fox;
+    /// use foxess::models::fox_variables::{PvPower, LoadsPower, SoC};
+    ///
+    /// # async fn demo(fox: Fox) -> Result<(), foxess::FoxError> {
+    /// // Pick the variable by choosing the spec type:
+    /// let pv_power: f64 = fox.get_variable_typed::<PvPower>()?;
+    /// let loads_power: f64 = fox.get_variable_typed::<LoadsPower>()?;
+    /// let soc: u8 = fox.get_variable_typed::<SoC>()?;
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub fn get_variable_typed<S: VariableSpec>(&self) -> Result<S::Value, FoxError> {
+        let data = self.get_device_real_time_data(vec![S::VARIABLE])?
+            .get(S::VARIABLE)
+            .ok_or(FoxError::VariableNotFoundError {
+                variable: S::VARIABLE.as_str(),
+            })?;
+
+        S::into(data)
+    }
+
+    /// Get setting from the inverter
     ///
     /// See https://www.foxesscloud.com/public/i18n/en/OpenApiDocument.html#get20the20device20settings20item0a3ca20id3dget20the20device20settings20item4303e203ca3e
     ///
     /// # Arguments
     ///
-    /// * 'settings' - List of settings to retrieve from the inverter
-    pub fn get_settings(&self, settings: Vec<FoxSettings>) -> Result<DeviceSettings, FoxError> {
+    /// * 'setting' - List of settings to retrieve from the inverter
+    fn get_setting(&self, setting: FoxSettings) -> Result<String, FoxError> {
         let path = "/op/v0/device/setting/get";
 
+        let req = RequestSettingsData { sn: &self.sn, key: setting.as_str() };
+
+        let req_json = serde_json::to_string(&req)?;
+
+        let json = self.post_request(&path, req_json)?;
+
+        let fox_data: DeviceSettingsResult = serde_json::from_str(&json)?;
+
+        Ok(fox_data.result.value)
+    }
+
+    /// Get a single inverter setting, parsed into a strongly-typed value.
+    ///
+    /// This is the typed variant of `get_setting`: instead of passing a setting key
+    /// as an argument, you choose a *setting spec type* `S` that implements
+    /// [`SettingSpec`]. The spec determines:
+    /// - which setting key is fetched (`S::SETTING`)
+    /// - how the raw string value is parsed (`S::parse`)
+    /// - the return type (`S::Value`)
+    ///
+    /// # Type Parameters
+    ///
+    /// * `S` - A [`SettingSpec`] describing which setting to read and how to parse it.
+    ///
+    /// # Examples
+    ///
+    /// ```rust,ignore
+    /// use foxess::Fox;
+    /// use foxess::models::fox_settings::{MaxSoc, MinSocOnGrid, WorkMode};
+    ///
+    /// # async fn demo(fox: Fox) -> Result<(), foxess::FoxError> {
+    /// // Pick the setting by choosing the spec type:
+    /// let max_soc: u8 = fox.get_setting_typed::<MaxSoc>()?;
+    /// let min_soc: u8 = fox.get_setting_typed::<MinSocOnGrid>()?;
+    /// let work_mode: String = fox.get_setting_typed::<WorkMode>()?;
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub fn get_setting_typed<S: SettingSpec>(&self) -> Result<S::Value, FoxError> {
+        let raw = self.get_setting(S::SETTING)?;
+        S::parse(raw)
+    }
+
+    /// Get settings from the inverter
+    ///
+    /// # Arguments
+    ///
+    /// * 'settings' - List of settings to retrieve from the inverter
+    pub fn get_settings(&self, settings: Vec<FoxSettings>) -> Result<DeviceSettings, FoxError> {
         let mut data_points: HashMap<FoxSettings, SettingsDataPoint> = HashMap::new();
 
         for s in settings.iter() {
-            let req = RequestSettingsData { sn: &self.sn, key: s.as_str() };
-
-            let req_json = serde_json::to_string(&req)?;
-
-            let json = self.post_request(&path, req_json)?;
-
-            let fox_data: DeviceSettingsResult = serde_json::from_str(&json)?;
-
-            data_points.insert(*s, SettingsDataPoint(fox_data.result.value));
+            let data = self.get_setting(*s)?;
+            data_points.insert(*s, SettingsDataPoint(data));
         }
 
         Ok(DeviceSettings { data_points })
@@ -393,6 +593,47 @@ impl Fox {
 
         let _ = self.post_request(&path, req_json)?;
 
+        Ok(())
+    }
+
+    /// Set a single inverter setting using a strongly-typed value.
+    ///
+    /// This is the typed variant of `set_setting`: instead of passing a setting key
+    /// as an argument, you choose a *setting spec type* `S` that implements
+    /// [`SettableSettingSpec`]. The spec determines:
+    /// - which setting key is written (`S::SETTING`)
+    /// - how the typed value is formatted for the API (`S::format`)
+    /// - which value type is accepted (`S::Value`)
+    ///
+    /// # Type Parameters
+    ///
+    /// * `S` - A [`SettableSettingSpec`] describing which setting can be set and how to format it.
+    ///
+    /// # Arguments
+    ///
+    /// * `value` - The new value for `S::SETTING` (type `S::Value`).
+    ///
+    /// # Examples
+    ///
+    /// ```rust,ignore
+    /// use foxess::Fox;
+    /// use foxess::models::fox_settings::{MaxSoc, MinSocOnGrid};
+    ///
+    /// # async fn demo(fox: Fox) -> Result<(), foxess::FoxError> {
+    /// // Pick the setting by choosing the spec type:
+    /// fox.set_setting_typed::<MaxSoc>(90)?;
+    /// fox.set_setting_typed::<MinSocOnGrid>(20)?;
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub fn set_setting_typed<S: SettableSettingSpec>(&self, value: S::Value) -> Result<(), FoxError> {
+        let path = "/op/v0/device/setting/set";
+        let data = S::format(&value);
+
+        let req = SetSetting { sn: &self.sn, key: S::SETTING.as_str(), value: &data };
+        let req_json = serde_json::to_string(&req)?;
+
+        let _ = self.post_request(&path, req_json)?;
         Ok(())
     }
 

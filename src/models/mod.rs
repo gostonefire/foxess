@@ -8,4 +8,6 @@ pub mod settings;
 pub use history::{HistoryDataSet, DeviceHistory};
 pub use fox_variables::FoxVariables;
 pub use fox_settings::FoxSettings;
+pub use fox_settings::{ExportLimit, MinSocOnGrid, MaxSoc, WorkMode, MaxSetChargeCurrent};
+pub use fox_variables::{PvPower, LoadsPower, SoC, SoH};
 pub use realtime::{VariableDataPoint, DeviceRealTime};

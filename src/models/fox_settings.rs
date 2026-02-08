@@ -1,5 +1,5 @@
 use std::str::FromStr;
-
+use crate::FoxError;
 // Available settings from FoxESS cloud:
 // * ExportLimit
 // * MinSoc
@@ -65,5 +65,100 @@ impl FromStr for FoxSettings {
             MAX_SET_CHARGE_CURRENT => Ok(FoxSettings::MaxSetChargeCurrent),
             _ => Err(()),
         }
+    }
+}
+
+/// A typed "spec" for a setting: it fixes the setting key and the value type.
+pub trait SettingSpec {
+    type Value;
+    const SETTING: FoxSettings;
+    fn parse(raw: String) -> Result<Self::Value, FoxError>;
+}
+
+/// A typed "spec" for settings that are allowed to be set.
+/// Implement this trait only for settable settings.
+pub trait SettableSettingSpec: SettingSpec {
+    fn format(value: &Self::Value) -> String;
+}
+
+pub struct ExportLimit;
+impl SettingSpec for ExportLimit {
+    type Value = f64;
+    const SETTING: FoxSettings = FoxSettings::ExportLimit;
+
+    fn parse(raw: String) -> Result<Self::Value, FoxError> {
+        raw.parse::<f64>().map_err(|e| FoxError::SettingParseError {
+            setting: Self::SETTING.as_str(),
+            value: raw,
+            error: e.to_string(),
+        })
+    }
+}
+
+pub struct MinSocOnGrid;
+impl SettingSpec for MinSocOnGrid {
+    type Value = u8;
+    const SETTING: FoxSettings = FoxSettings::MinSocOnGrid;
+
+    fn parse(raw: String) -> Result<Self::Value, FoxError> {
+        raw.parse::<u8>()
+            .map(|v| v.clamp(0, 100))
+            .map_err(|e| FoxError::SettingParseError {
+                setting: Self::SETTING.as_str(),
+                value: raw,
+                error: e.to_string(),
+            })
+    }
+}
+
+impl SettableSettingSpec for MinSocOnGrid {
+    fn format(value: &Self::Value) -> String {
+        value.clamp(&10, &100).to_string()
+    }
+}
+
+pub struct MaxSoc;
+impl SettingSpec for MaxSoc {
+    type Value = u8;
+    const SETTING: FoxSettings = FoxSettings::MaxSoc;
+
+    fn parse(raw: String) -> Result<Self::Value, FoxError> {
+        raw.parse::<u8>()
+            .map(|v| v.clamp(0, 100))
+            .map_err(|e| FoxError::SettingParseError {
+                setting: Self::SETTING.as_str(),
+                value: raw,
+                error: e.to_string(),
+            })
+    }
+}
+
+impl SettableSettingSpec for MaxSoc {
+    fn format(value: &Self::Value) -> String {
+        value.clamp(&10, &100).to_string()
+    }
+}
+
+pub struct WorkMode;
+impl SettingSpec for WorkMode {
+    type Value = String;
+    const SETTING: FoxSettings = FoxSettings::WorkMode;
+
+    fn parse(raw: String) -> Result<Self::Value, FoxError> {
+        Ok(raw)
+    }
+}
+
+pub struct MaxSetChargeCurrent;
+impl SettingSpec for MaxSetChargeCurrent {
+    type Value = f64;
+    const SETTING: FoxSettings = FoxSettings::MaxSetChargeCurrent;
+
+    fn parse(raw: String) -> Result<Self::Value, FoxError> {
+        raw.parse::<f64>().map_err(|e| FoxError::SettingParseError {
+            setting: Self::SETTING.as_str(),
+            value: raw,
+            error: e.to_string(),
+        })
     }
 }

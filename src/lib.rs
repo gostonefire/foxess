@@ -11,4 +11,6 @@ compile_error!("Enable one of the features: 'async' (default) or 'blocking'.");
 pub use client::Fox;
 pub use models::FoxVariables;
 pub use models::FoxSettings;
+pub use models::{ExportLimit, MinSocOnGrid, MaxSoc, WorkMode, MaxSetChargeCurrent};
+pub use models::{PvPower, LoadsPower, SoC, SoH};
 pub use error::FoxError;
