@@ -237,6 +237,33 @@ impl Fox {
         Ok(())
     }
 
+    /// Set the battery charging time schedule.
+    /// This is the standard charging scheduler setting.
+    /// No time overlaps are permitted between the two schedules.
+    ///
+    /// See https://www.foxesscloud.com/public/i18n/en/OpenApiDocument.html#set20the20battery20charging20time0a3ca20id3dset20the20battery20charging20time4303e203ca3e
+    ///
+    /// # Arguments
+    ///
+    /// * 'enable' - whether schedule 1 shall be enabled
+    /// * 'start' - start time of schedule 1 as a DateTime<Utc>
+    /// * 'end' - end time of schedule 1 as a DateTime<Utc> (non-inclusive)
+    pub async fn set_battery_charging_time_schedule(&self, enable: bool, start: DateTime<Utc>, end: DateTime<Utc>) -> Result<(), FoxError> {
+        let (req_json, path) = self.fox_helper.pre_set_battery_charging_time_schedule(enable, start, end)?;
+
+        let _ = self.post_request(&path, req_json).await?;
+
+        Ok(())
+    }
+
+    /// Disables any current ongoing charging schedule in the inverter
+    ///
+    pub async fn disable_charge_schedule(&self) -> Result<(), FoxError> {
+        self.set_battery_charging_time_schedule(
+            false, Default::default(), Default::default()
+        ).await
+    }
+
     /// Builds a request and sends it as a POST.
     /// The return is the json representation of the result as specified by
     /// respective FoxESS API
@@ -472,6 +499,33 @@ impl Fox {
         let _ = self.post_request(&path, req_json)?;
 
         Ok(())
+    }
+
+    /// Set the battery charging time schedule.
+    /// This is the standard charging scheduler setting.
+    /// No time overlaps are permitted between the two schedules.
+    ///
+    /// See https://www.foxesscloud.com/public/i18n/en/OpenApiDocument.html#set20the20battery20charging20time0a3ca20id3dset20the20battery20charging20time4303e203ca3e
+    ///
+    /// # Arguments
+    ///
+    /// * 'enable' - whether schedule 1 shall be enabled
+    /// * 'start' - start time of schedule 1 as a DateTime<Utc>
+    /// * 'end' - end time of schedule 1 as a DateTime<Utc> (non-inclusive)
+    pub fn set_battery_charging_time_schedule(&self, enable: bool, start: DateTime<Utc>, end: DateTime<Utc>) -> Result<(), FoxError> {
+        let (req_json, path) = self.fox_helper.pre_set_battery_charging_time_schedule(enable, start, end)?;
+
+        let _ = self.post_request(&path, req_json)?;
+
+        Ok(())
+    }
+
+    /// Disables any current ongoing charging schedule in the inverter
+    ///
+    pub fn disable_charge_schedule(&self) -> Result<(), FoxError> {
+        self.set_battery_charging_time_schedule(
+            false, Default::default(), Default::default()
+        )
     }
 
     /// Builds a request and sends it as a POST.

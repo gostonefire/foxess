@@ -32,6 +32,30 @@ pub struct SetSetting<'a> {
     pub value: &'a str, 
 }
 
+#[derive(Serialize)]
+pub struct ChargingTimeSchedule {
+    #[serde(skip_deserializing)]
+    pub sn: String,
+    #[serde(rename = "enable1")]
+    pub enable_1: bool,
+    #[serde(rename = "startTime1")]
+    pub start_time_1: ChargingTime,
+    #[serde(rename = "endTime1")]
+    pub end_time_1: ChargingTime,
+    #[serde(rename = "enable2")]
+    pub enable_2: bool,
+    #[serde(rename = "startTime2")]
+    pub start_time_2: ChargingTime,
+    #[serde(rename = "endTime2")]
+    pub end_time_2: ChargingTime,
+}
+
+#[derive(Serialize)]
+pub struct ChargingTime {
+    pub hour: u8,
+    pub minute: u8,
+}
+
 // Reply structs for device history data
 //
 

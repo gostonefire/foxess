@@ -1,13 +1,14 @@
 use std::collections::HashMap;
+use std::ops::Add;
 use std::str::FromStr;
-use chrono::{DateTime, Utc};
+use chrono::{DateTime, Local, NaiveTime, TimeDelta, Timelike, Utc};
 use md5::{Digest, Md5};
 use reqwest::header::{HeaderMap, HeaderName, HeaderValue};
 use serde::{Deserialize, Serialize};
 use crate::{FoxError, FoxSettings, FoxVariables};
 use crate::fox_settings::SettableSettingSpec;
 use crate::models::{DeviceHistory, DeviceRealTime, HistoryDataSet, VariableDataPoint};
-use crate::models::dto::{DeviceHistoryData, DeviceHistoryResult, DeviceRealTimeResult, DeviceSettingsResult, RequestDeviceHistoryData, RequestDeviceRealTimeData, RequestSettingsData, SetSetting};
+use crate::models::dto::{ChargingTime, ChargingTimeSchedule, DeviceHistoryData, DeviceHistoryResult, DeviceRealTimeResult, DeviceSettingsResult, RequestDeviceHistoryData, RequestDeviceRealTimeData, RequestSettingsData, SetSetting};
 
 pub(crate) struct FoxHelper {
     api_key: String,
@@ -162,6 +163,45 @@ impl FoxHelper {
         Ok((serde_json::to_string(&req)?, path))
     }
 
+    /// Pre-network request: Set the battery charging time schedule.
+    /// This is the standard charging scheduler setting.
+    /// No time overlaps are permitted between the two schedules.
+    ///
+    /// See https://www.foxesscloud.com/public/i18n/en/OpenApiDocument.html#set20the20battery20charging20time0a3ca20id3dset20the20battery20charging20time4303e203ca3e
+    ///
+    /// # Arguments
+    ///
+    /// * 'enable' - whether schedule 1 shall be enabled
+    /// * 'start' - start time of schedule 1 as a DateTime<Utc>
+    /// * 'end' - end time of schedule 1 as a DateTime<Utc> (non-inclusive)
+    pub (crate) fn pre_set_battery_charging_time_schedule(&self, enable: bool, start: DateTime<Utc>, end: DateTime<Utc>) -> Result<(String,&'static str), FoxError> {
+        let path = "/op/v0/device/battery/forceChargeTime/set";
+
+        let mut start_hour: u8 = 0;
+        let mut start_minute: u8 = 0;
+        let mut end_hour: u8 = 0;
+        let mut end_minute: u8 = 0;
+
+        if enable {
+            let start_local = start.with_timezone(&Local);
+            let end_local = end.with_timezone(&Local).add(TimeDelta::minutes(-1));
+
+            start_hour = start_local.hour() as u8;
+            start_minute = start_local.minute() as u8;
+            end_hour = end_local.hour() as u8;
+            end_minute = end_local.minute() as u8;
+        }
+
+        let schedule = self.build_charge_time_schedule(
+            enable, start_hour, start_minute, end_hour, end_minute,
+            false, 0, 0, 0, 0,
+        )?;
+        let req_json = serde_json::to_string(&schedule)?;
+
+        Ok((req_json, path))
+    }
+
+
     /// Pre-network request: Builds a request and sends it as a POST.
     ///
     /// # Arguments
@@ -186,6 +226,96 @@ impl FoxHelper {
         }
 
         Ok(json)
+    }
+
+    /// Builds a charge time schedule after first checking for inconsistencies.
+    /// Inconsistencies are any of:
+    /// * wrong time, e.g., hour outside 0-23 or minute outside 0-59
+    /// * start time after end time
+    /// * overlapping between schedule 1 and 2 (times are inclusive in both ends)
+    ///
+    /// It does correct minor errors:
+    /// * a schedule not enabled is automatically set to zero start and end time
+    /// * a schedule which is enabled but with the same start and end time is disabled and zeroed
+    ///
+    /// # Arguments
+    ///
+    /// * 'sn' - the serial number of the inverter
+    /// * 'enable_1' - whether schedule 1 shall be enabled
+    /// * 'start_hour_1' - start hour of schedule 1
+    /// * 'start_minute_1' - start minute of schedule 1
+    /// * 'end_hour_1' - end hour of schedule 1
+    /// * 'end_minute_1' - end minute of schedule 1
+    /// * 'enable_2' - whether schedule 2 shall be enabled
+    /// * 'start_hour_2' - start hour of schedule 2
+    /// * 'start_minute_2' - start minute of schedule 2
+    /// * 'end_hour_2' - end hour of schedule 2
+    /// * 'end_minute_2' - end minute of schedule 2
+    fn build_charge_time_schedule(
+        &self,
+        mut enable_1: bool, mut start_hour_1: u8, mut start_minute_1: u8, mut end_hour_1: u8, mut end_minute_1: u8,
+        mut enable_2: bool, mut start_hour_2: u8, mut start_minute_2: u8, mut end_hour_2: u8, mut end_minute_2: u8,
+    ) -> Result<ChargingTimeSchedule, FoxError> {
+
+        // Check schedule 1 for inconsistencies
+        let start_1 = NaiveTime::from_hms_opt(start_hour_1 as u32, start_minute_1 as u32, 0)
+            .ok_or(FoxError::ScheduleBuildError("charge schedule 1 start time error".to_string()))?;
+        let end_1 = NaiveTime::from_hms_opt(end_hour_1 as u32, end_minute_1 as u32, 0)
+            .ok_or(FoxError::ScheduleBuildError("charge schedule 1 end time error".to_string()))?;
+        let dur_1 = end_1 - start_1;
+
+        if dur_1 < TimeDelta::new(0, 0).unwrap() {
+            return Err(FoxError::ScheduleBuildError("charge schedule 1 start time is after end time".to_string()));
+        }
+
+        if !enable_1 || dur_1 == TimeDelta::new(0, 0).unwrap() {
+            enable_1 = false;
+            start_hour_1 = 0;
+            start_minute_1 = 0;
+            end_hour_1 = 0;
+            end_minute_1 = 0;
+        }
+
+        // Check schedule 2 for inconsistencies
+        let start_2 = NaiveTime::from_hms_opt(start_hour_2 as u32, start_minute_2 as u32, 0)
+            .ok_or(FoxError::ScheduleBuildError("charge schedule 2 start time error".to_string()))?;
+        let end_2 = NaiveTime::from_hms_opt(end_hour_2 as u32, end_minute_2 as u32, 0)
+            .ok_or(FoxError::ScheduleBuildError("charge schedule 2 end time error".to_string()))?;
+        let dur_2 = end_2 - start_2;
+
+        if dur_2 < TimeDelta::new(0, 0).unwrap() {
+            return Err(FoxError::ScheduleBuildError("charge schedule 2 start time is after end time".to_string()));
+        }
+
+        if !enable_2 || dur_2 <= TimeDelta::new(0, 0).unwrap() {
+            enable_2 = false;
+            start_hour_2 = 0;
+            start_minute_2 = 0;
+            end_hour_2 = 0;
+            end_minute_2 = 0;
+        }
+
+
+        // Check if schedules are overlapping
+        if enable_1 && enable_2 {
+            if start_2 >= start_1 && start_2 <= start_1 + dur_1 {
+                return Err(FoxError::ScheduleBuildError("overlapping charge schedules".to_string()));
+            }
+            if end_2 >= start_1 && end_2 <= start_1 + dur_1 {
+                return Err(FoxError::ScheduleBuildError("overlapping charge schedules".to_string()));
+            }
+        }
+
+        // All checks seem fine, return schedule struct
+        Ok(ChargingTimeSchedule {
+            sn: self.sn.clone(),
+            enable_1,
+            start_time_1: ChargingTime { hour: start_hour_1, minute: start_minute_1 },
+            end_time_1: ChargingTime { hour: end_hour_1, minute: end_minute_1 },
+            enable_2,
+            start_time_2: ChargingTime { hour: start_hour_2, minute: start_minute_2 },
+            end_time_2: ChargingTime { hour: end_hour_2, minute: end_minute_2 },
+        })
     }
 }
 

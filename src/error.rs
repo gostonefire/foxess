@@ -26,4 +26,6 @@ pub enum FoxError {
     UnallowedSetSetting,
     #[error("VariableNotFoundError: variable={variable}")]
     VariableNotFoundError { variable: &'static str },
+    #[error("ScheduleBuildError: {0}")]
+    ScheduleBuildError(String),
 }
