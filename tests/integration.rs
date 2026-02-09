@@ -3,7 +3,7 @@ use std::{env, fs};
 use std::path::PathBuf;
 use thiserror::Error;
 use foxess::Fox;
-use foxess::fox_settings::{WorkMode, MinSocOnGrid, MaxSetChargeCurrent};
+use foxess::fox_variables::BatTemperature;
 
 #[cfg(feature = "async")]
 #[tokio::test]
@@ -19,19 +19,10 @@ async fn it_works() {
         panic!("Failed to create Fox instance: {e}");
     });
 
-    let work_mode = fox.get_setting_typed::<WorkMode>().await.unwrap_or_else(|e| {
-        panic!("Failed to get device settings: {e}");
+    let bat_temp = fox.get_variable_typed::<BatTemperature>().await.unwrap_or_else(|e| {
+        panic!("Failed to get device variables: {e}");
     });
-    println!("{}", work_mode);
-
-    let max_set_charge_current = fox.get_setting_typed::<MaxSetChargeCurrent>().await.unwrap_or_else(|e| {
-        panic!("Failed to get device settings: {e}");
-    });
-    println!("{:?}", max_set_charge_current);
-
-    let _ = fox.set_setting_typed::<MinSocOnGrid>(10).await.unwrap_or_else(|e| {
-        panic!("Failed to set device settings: {e}");
-    });
+    println!("{:?}", bat_temp);
 }
 
 #[cfg(feature = "blocking")]
@@ -48,19 +39,10 @@ fn it_works() {
         panic!("Failed to create Fox instance: {e}");
     });
 
-    let work_mode = fox.get_setting_typed::<WorkMode>().unwrap_or_else(|e| {
-        panic!("Failed to get device settings: {e}");
+    let bat_temp = fox.get_variable_typed::<BatTemperature>().unwrap_or_else(|e| {
+        panic!("Failed to get device variables: {e}");
     });
-    println!("{}", work_mode);
-
-    let max_set_charge_current = fox.get_setting_typed::<MaxSetChargeCurrent>().unwrap_or_else(|e| {
-        panic!("Failed to get device settings: {e}");
-    });
-    println!("{:?}", max_set_charge_current);
-
-    let _ = fox.set_setting_typed::<MinSocOnGrid>(10).unwrap_or_else(|e| {
-        panic!("Failed to set device settings: {e}");
-    });
+    println!("{:?}", bat_temp);
 }
 
 /// Reads a credential from the file system supported by the credstore and
