@@ -5,6 +5,7 @@ const PV_POWER: &str = "pvPower";
 const LOADS_POWER: &str = "loadsPower";
 const SOC: &str = "SoC";
 const SOH: &str = "SOH";
+const BAT_TEMPERATURE: &str = "batTemperature";
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum FoxVariables {
@@ -12,6 +13,7 @@ pub enum FoxVariables {
     LoadsPower,
     SoC,
     SoH,
+    BatTemperature,
 }
 
 impl FoxVariables {
@@ -21,6 +23,7 @@ impl FoxVariables {
             FoxVariables::LoadsPower => LOADS_POWER,
             FoxVariables::SoC => SOC,
             FoxVariables::SoH => SOH,
+            FoxVariables::BatTemperature => BAT_TEMPERATURE,
         }
     }
 }
@@ -33,6 +36,7 @@ impl FromStr for FoxVariables {
             LOADS_POWER => Ok(FoxVariables::LoadsPower),
             SOC => Ok(FoxVariables::SoC),
             SOH => Ok(FoxVariables::SoH),
+            BAT_TEMPERATURE => Ok(FoxVariables::BatTemperature),
             _ => Err(()),
         }
     }
@@ -89,6 +93,16 @@ impl VariableSpec for SoH {
             value: raw.to_string(),
             error: e.to_string(),
         })
+    }
+}
+
+pub struct BatTemperature;
+impl VariableSpec for BatTemperature {
+    type Value = f64;
+    const VARIABLE: FoxVariables = FoxVariables::BatTemperature;
+
+    fn into(raw: f64) -> Result<Self::Value, FoxError> {
+        Ok(raw)
     }
 }
 

@@ -31,6 +31,7 @@ pub mod fox_variables {
         LoadsPower,
         SoC,
         SoH,
+        BatTemperature,
         VariableSpec,
     };
 }
