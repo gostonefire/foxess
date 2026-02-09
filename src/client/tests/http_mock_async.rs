@@ -3,6 +3,7 @@ use httpmock::prelude::*;
 
 #[cfg(feature = "async")]
 use md5::{Digest, Md5};
+use serde_json::json;
 
 #[cfg(feature = "async")]
 fn expected_signature(path: &str, api_key: &str, timestamp_millis: i64) -> String {
@@ -16,7 +17,7 @@ fn expected_signature(path: &str, api_key: &str, timestamp_millis: i64) -> Strin
 
 #[cfg(feature = "async")]
 #[tokio::test]
-async fn async_get_settings_uses_mock_server() {
+async fn async_get_settings() {
     use crate::{Fox, FoxSettings};
 
     const API_KEY: &str = "TEST_API_KEY";
@@ -58,7 +59,7 @@ async fn async_get_settings_uses_mock_server() {
 
 #[cfg(feature = "async")]
 #[tokio::test]
-async fn async_get_setting_typed_uses_mock_server() {
+async fn async_get_setting_typed() {
     use crate::Fox;
     use crate::fox_settings::MinSocOnGrid;
 
@@ -101,7 +102,7 @@ async fn async_get_setting_typed_uses_mock_server() {
 
 #[cfg(feature = "async")]
 #[tokio::test]
-async fn async_set_setting_typed_uses_mock_server() {
+async fn async_set_setting_typed() {
     use crate::Fox;
     use crate::fox_settings::MinSocOnGrid;
 
@@ -280,7 +281,7 @@ async fn async_get_variable_typed_outside_valid_range() {
 
 #[cfg(feature = "async")]
 #[tokio::test]
-async fn async_get_history_transforms_first_datapoint_only() {
+async fn async_get_history() {
     use chrono::{TimeZone, Utc};
     use crate::{Fox, FoxVariables};
 
@@ -330,6 +331,98 @@ async fn async_get_history_transforms_first_datapoint_only() {
     let series = res.get(FoxVariables::PvPower).unwrap();
     assert_eq!(series.len(), 2);
     assert_eq!(series[0].data, 42.0);
+}
+
+#[cfg(feature = "async")]
+#[tokio::test]
+async fn async_set_battery_charging_time_schedule() {
+    use chrono::{TimeZone, Utc, Local};
+    use crate::Fox;
+
+    const API_KEY: &str = "TEST_API_KEY";
+    const SN: &str = "TEST_SN";
+    const TS: i64 = 1_700_000_000_000;
+    const PATH: &str = "/op/v0/device/battery/forceChargeTime/set";
+
+    fn fixed_now() -> i64 { TS }
+
+    let server = MockServer::start();
+    let sig = expected_signature(PATH, API_KEY, TS);
+
+    let _m = server.mock(|when, then| {
+        when.method(POST)
+            .path(PATH)
+            .header("token", API_KEY)
+            .header("timestamp", &TS.to_string())
+            .header("signature", &sig)
+            .header("lang", "en")
+            .header("content-type", "application/json")
+            .json_body(json!(
+                {
+                    "sn": SN,
+                    "enable1": true,
+                    "enable2": false,
+                    "startTime1": {
+                        "hour": 3,
+                        "minute": 15
+                    },
+                    "endTime1": {
+                        "hour": 5,
+                        "minute": 29
+                    },
+                    "startTime2": {
+                        "hour": 0,
+                        "minute": 0
+                    },
+                    "endTime2": {
+                        "hour": 0,
+                        "minute": 0
+                    }
+                }));
+
+        then.status(200)
+            .header("Content-Type", "application/json")
+            .body(r#"{
+                "errno": 0,
+                "msg": "Operation successful",
+                "result": null
+            }"#);
+    });
+
+    let fox = Fox::new_with_base_url_and_clock("TEST_API_KEY", "TEST_SN", 5, &server.base_url(), fixed_now).unwrap();
+    let start = Local.with_ymd_and_hms(2026, 2, 9, 3, 15, 0).unwrap().with_timezone(&Utc);
+    let end = Local.with_ymd_and_hms(2026, 2, 9, 5, 30, 0).unwrap().with_timezone(&Utc);
+
+    let _ = fox.set_battery_charging_time_schedule(true, start, end).await.unwrap();
+}
+
+#[cfg(feature = "async")]
+#[tokio::test]
+async fn async_set_battery_charging_time_schedule_end_before_start() {
+    use chrono::{TimeZone, Utc, Local};
+    use crate::Fox;
+
+    const TS: i64 = 1_700_000_000_000;
+
+    fn fixed_now() -> i64 { TS }
+
+    let server = MockServer::start();
+
+    let _m = server.mock(|when, then| {
+        when.method(POST);
+        then.status(500);
+    });
+
+    let fox = Fox::new_with_base_url_and_clock("TEST_API_KEY", "TEST_SN", 5, &server.base_url(), fixed_now).unwrap();
+    let start = Local.with_ymd_and_hms(2026, 2, 9, 5, 30, 0).unwrap().with_timezone(&Utc);
+    let end = Local.with_ymd_and_hms(2026, 2, 9, 3, 15, 0).unwrap().with_timezone(&Utc);
+
+    let err = fox.set_battery_charging_time_schedule(true, start, end).await
+        .err()
+        .expect("set_battery_charging_time_schedule should fail");
+
+    let msg = format!("{err}");
+    assert!(msg.contains("charge schedule 1 start time is after end time"));
 }
 
 #[cfg(feature = "async")]
