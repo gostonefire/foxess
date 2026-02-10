@@ -1,11 +1,11 @@
 pub mod history;
 pub mod fox_variables;
-pub mod realtime;
+pub mod variables;
 pub(crate) mod dto;
 pub mod fox_settings;
 pub mod settings;
 
-pub use history::{HistoryDataSet, DeviceHistory};
+pub use history::{VariableDataSet, VariablesDataHistory};
 pub use fox_variables::FoxVariables;
 pub use fox_settings::FoxSettings;
-pub use realtime::{VariableDataPoint, DeviceRealTime};
+pub use variables::{VariableDataPoint, VariablesData};

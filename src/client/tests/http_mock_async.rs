@@ -1,10 +1,25 @@
+//! Unit tests for async client functionality using httpmock.
+//!
+
 #[cfg(feature = "async")]
 use httpmock::prelude::*;
-
 #[cfg(feature = "async")]
 use md5::{Digest, Md5};
+#[cfg(feature = "async")]
 use serde_json::json;
 
+/// Generates the expected MD5 signature for a given API request.
+///
+/// The signature is calculated based on the request path, API key, and timestamp.
+/// It mimics the signature generation logic used in the library.
+///
+/// # Arguments
+/// * `path` - The API endpoint path.
+/// * `api_key` - The user's API key.
+/// * `timestamp_millis` - The request timestamp in milliseconds.
+///
+/// # Returns
+/// * `String` - The hex-encoded MD5 signature.
 #[cfg(feature = "async")]
 fn expected_signature(path: &str, api_key: &str, timestamp_millis: i64) -> String {
     // Must match the library logic exactly (note the literal "\r\n" sequences).
@@ -15,6 +30,10 @@ fn expected_signature(path: &str, api_key: &str, timestamp_millis: i64) -> Strin
     hasher.finalize().iter().map(|x| format!("{:02x}", x)).collect()
 }
 
+/// Verifies that `get_settings` correctly fetches and parses multiple settings from the API.
+///
+/// This test mocks a successful API response for a settings query and asserts that
+/// the returned values are correctly converted to their expected types.
 #[cfg(feature = "async")]
 #[tokio::test]
 async fn async_get_settings() {
@@ -57,6 +76,10 @@ async fn async_get_settings() {
     assert_eq!(res.get_f64(FoxSettings::MaxSetChargeCurrent).unwrap(), Some(12.34));
 }
 
+/// Verifies that `get_setting_typed` correctly fetches and parses a single setting into a specific type.
+///
+/// This test ensures that the generic `get_setting_typed` method works as expected for
+/// settings that have a numeric representation in the API response.
 #[cfg(feature = "async")]
 #[tokio::test]
 async fn async_get_setting_typed() {
@@ -100,6 +123,10 @@ async fn async_get_setting_typed() {
     assert_eq!(res, 55);
 }
 
+/// Verifies that `set_setting_typed` correctly sends a request to update a setting.
+///
+/// This test mocks a successful setting update and ensures that the request body
+/// contains the correct serial number, key, and value.
 #[cfg(feature = "async")]
 #[tokio::test]
 async fn async_set_setting_typed() {
@@ -140,9 +167,12 @@ async fn async_set_setting_typed() {
     let _ = fox.set_setting_typed::<MinSocOnGrid>(55).await.unwrap();
 }
 
+/// Verifies that real-time variables can be parsed even when the API returns values in scientific notation.
+///
+/// This ensures robustness against different numeric formats that might be returned by the FoxESS API.
 #[cfg(feature = "async")]
 #[tokio::test]
-async fn async_get_realtime_parses_scientific_notation() {
+async fn async_get_variables_parses_scientific_notation() {
     use crate::{Fox, FoxVariables};
 
     const API_KEY: &str = "TEST_API_KEY";
@@ -180,12 +210,13 @@ async fn async_get_realtime_parses_scientific_notation() {
     });
 
     let fox = Fox::new_with_base_url_and_clock("TEST_API_KEY", "TEST_SN", 5, &server.base_url(), fixed_now).unwrap();
-    let res = fox.get_device_real_time_data(vec![FoxVariables::SoC, FoxVariables::PvPower]).await.unwrap();
+    let res = fox.get_variables(vec![FoxVariables::SoC, FoxVariables::PvPower]).await.unwrap();
 
     assert_eq!(res.get_u8_percent(FoxVariables::SoC), Some(99));
     assert_eq!(res.get(FoxVariables::PvPower), Some(123.0));
 }
 
+/// Verifies that `get_variable_typed` correctly handles scientific notation for a single variable.
 #[cfg(feature = "async")]
 #[tokio::test]
 async fn async_get_variable_typed_parses_scientific_notation() {
@@ -231,6 +262,9 @@ async fn async_get_variable_typed_parses_scientific_notation() {
     assert_eq!(res, 99);
 }
 
+/// Verifies that `get_variable_typed` returns an error when the value is outside the valid range.
+///
+/// For example, an SoC value of 110% should trigger a validation error during parsing.
 #[cfg(feature = "async")]
 #[tokio::test]
 async fn async_get_variable_typed_outside_valid_range() {
@@ -279,9 +313,13 @@ async fn async_get_variable_typed_outside_valid_range() {
     assert!(msg.contains("value out of range for u8 percentage after rounding"));
 }
 
+/// Verifies that `get_variables_history` correctly retrieves and parses historical data points.
+///
+/// This test mocks a historical data response and checks that the timestamps and values
+/// are correctly processed into the resulting map.
 #[cfg(feature = "async")]
 #[tokio::test]
-async fn async_get_history() {
+async fn async_get_variables_history() {
     use chrono::{TimeZone, Utc};
     use crate::{Fox, FoxVariables};
 
@@ -326,13 +364,17 @@ async fn async_get_history() {
     let start = Utc.timestamp_millis_opt(0).unwrap();
     let end = Utc.timestamp_millis_opt(1).unwrap();
 
-    let res = fox.get_device_history_data(start, end, vec![FoxVariables::PvPower]).await.unwrap();
+    let res = fox.get_variables_history(start, end, vec![FoxVariables::PvPower]).await.unwrap();
 
     let series = res.get(FoxVariables::PvPower).unwrap();
     assert_eq!(series.len(), 2);
     assert_eq!(series[0].data, 42.0);
 }
 
+/// Verifies that `set_battery_charging_time_schedule` correctly configures a charging schedule.
+///
+/// This test checks that the complex JSON structure required for setting schedules is
+/// correctly generated and sent to the API.
 #[cfg(feature = "async")]
 #[tokio::test]
 async fn async_set_battery_charging_time_schedule() {
@@ -396,6 +438,9 @@ async fn async_set_battery_charging_time_schedule() {
     let _ = fox.set_battery_charging_time_schedule(true, start, end).await.unwrap();
 }
 
+/// Verifies that setting a charging schedule with an end time before the start time results in an error.
+///
+/// Validation should happen locally before the request is even sent to the API.
 #[cfg(feature = "async")]
 #[tokio::test]
 async fn async_set_battery_charging_time_schedule_end_before_start() {
@@ -425,6 +470,7 @@ async fn async_set_battery_charging_time_schedule_end_before_start() {
     assert!(msg.contains("charge schedule 1 start time is after end time"));
 }
 
+/// Verifies that non-zero `errno` values in the API response are correctly mapped to `FoxError`.
 #[cfg(feature = "async")]
 #[tokio::test]
 async fn async_errno_nonzero_maps_to_error() {
@@ -459,6 +505,7 @@ async fn async_errno_nonzero_maps_to_error() {
     assert!(msg.contains("The request header parameters are missing"));
 }
 
+/// Verifies that HTTP status errors (e.g., 500 Internal Server Error) are correctly mapped to `FoxError`.
 #[cfg(feature = "async")]
 #[tokio::test]
 async fn async_http_status_error_maps_to_error() {

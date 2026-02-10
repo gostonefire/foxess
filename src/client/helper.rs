@@ -1,3 +1,17 @@
+//! Internal helper utilities for the FoxESS API client.
+//!
+//! This module provides the [`FoxHelper`] struct and associated functions that handle the
+//! heavy lifting for the [`Fox`](crate::client::Fox) struct. It encapsulates the logic for:
+//!
+//! - Preparing request payloads and paths for the FoxESS Open API.
+//! - Parsing and transforming raw API responses into domain models.
+//! - Managing authentication headers and request signing.
+//! - Coordinating time conversions and data formatting.
+//!
+//! The relationship between `Fox` and `FoxHelper` follows a separation of concerns where
+//! `Fox` manages the high-level API (async/blocking clients, network transport) while
+//! `FoxHelper` contains the pure, testable logic for interacting with the FoxESS API protocol.
+
 use std::collections::HashMap;
 use std::ops::Add;
 use std::str::FromStr;
@@ -7,7 +21,7 @@ use reqwest::header::{HeaderMap, HeaderName, HeaderValue};
 use serde::{Deserialize, Serialize};
 use crate::{FoxError, FoxSettings, FoxVariables};
 use crate::fox_settings::SettableSettingSpec;
-use crate::models::{DeviceHistory, DeviceRealTime, HistoryDataSet, VariableDataPoint};
+use crate::models::{VariablesDataHistory, VariablesData, VariableDataSet, VariableDataPoint};
 use crate::models::dto::{ChargingTime, ChargingTimeSchedule, DeviceHistoryData, DeviceHistoryResult, DeviceRealTimeResult, DeviceSettingsResult, RequestDeviceHistoryData, RequestDeviceRealTimeData, RequestSettingsData, SetSetting};
 
 pub(crate) struct FoxHelper {
@@ -18,12 +32,13 @@ pub(crate) struct FoxHelper {
 }
 
 impl FoxHelper {
-    /// Returns a new instance of the FoxHelper struct
+    /// Returns a new instance of the [`FoxHelper`] struct.
     ///
     /// # Arguments
-    ///
-    /// * 'api_key' - FoxESS API Key
-    /// * 'sn' - FoxESS inverter serial number
+    /// * `api_key` - The FoxESS API Key.
+    /// * `sn` - The FoxESS inverter serial number.
+    /// * `base_url` - The base URL for the FoxESS API.
+    /// * `now_millis` - A function that returns the current time in milliseconds.
     pub(crate) fn new(api_key: &str, sn: &str, base_url: &str, now_millis: fn() -> i64) -> Self {
         Self {
             api_key: api_key.to_string(),
@@ -33,16 +48,18 @@ impl FoxHelper {
         }
     }
     
-    /// Pre-network request: Collect history data from the inverter
+    /// Pre-network request: Prepare the request for historical data.
     ///
-    /// See https://www.foxesscloud.com/public/i18n/en/OpenApiDocument.html#get20device20history20data0a3ca20id3dget20device20history20data4303e203ca3e
+    /// For more information, see the [FoxESS API documentation](https://www.foxesscloud.com/public/i18n/en/OpenApiDocument.html#get20device20history20data0a3ca20id3dget20device20history20data4303e203ca3e).
     ///
     /// # Arguments
+    /// * `start` - The start time for the data range.
+    /// * `end` - The end time for the data range.
+    /// * `parameters` - A list of variables to retrieve.
     ///
-    /// * 'start' - the start time of the report
-    /// * 'end' - the end time of the report
-    /// * 'variables' - List of variables to retrieve from the inverter
-    pub(crate) fn pre_get_device_history_data(&self, start: DateTime<Utc>, end: DateTime<Utc>, parameters: Vec<FoxVariables>) -> Result<(String, &'static str), FoxError> {
+    /// # Returns
+    /// * `Result<(String, &'static str), FoxError>` - A tuple containing the JSON request body and the API path.
+    pub(crate) fn pre_get_variables_history(&self, start: DateTime<Utc>, end: DateTime<Utc>, parameters: Vec<FoxVariables>) -> Result<(String, &'static str), FoxError> {
         let path = "/op/v0/device/history/query";
 
         let req = RequestDeviceHistoryData {
@@ -55,26 +72,30 @@ impl FoxHelper {
         Ok((serde_json::to_string(&req)?, path))
     }
 
-    /// Post-network request: Collect history data from the inverter
+    /// Post-network request: Process the response from the historical data request.
     ///
     /// # Arguments
+    /// * `json` - The JSON response string from the API.
     ///
-    /// * 'json' - JSON string to process
-    pub(crate) fn post_get_device_history_data(&self, json: &str) -> Result<DeviceHistory, FoxError> {
+    /// # Returns
+    /// * `Result<VariablesDataHistory, FoxError>` - A structure containing the historical data points.
+    pub(crate) fn post_get_variables_history(&self, json: &str) -> Result<VariablesDataHistory, FoxError> {
         let fox_data: DeviceHistoryResult = serde_json::from_str(json)?;
         let device_history = transform_history_data(fox_data.result)?;
 
         Ok(device_history)
     }
 
-    /// Pre-network request: Collect real-time data from the inverter
+    /// Pre-network request: Prepare the request for real-time data.
     ///
-    /// See https://www.foxesscloud.com/public/i18n/en/OpenApiDocument.html#get20device20real-time20data0a3ca20id3dget20device20real-time20data5603e203ca3e
+    /// For more information, see the [FoxESS API documentation](https://www.foxesscloud.com/public/i18n/en/OpenApiDocument.html#get20device20real-time20data0a3ca20id3dget20device20real-time20data5603e203ca3e).
     ///
     /// # Arguments
+    /// * `variables` - A list of variables to retrieve.
     ///
-    /// * 'variables' - List of variables to retrieve from the inverter
-    pub(crate) fn pre_get_device_real_time_data(&self, variables: Vec<FoxVariables>) -> Result<(String, &'static str), FoxError> {
+    /// # Returns
+    /// * `Result<(String, &'static str), FoxError>` - A tuple containing the JSON request body and the API path.
+    pub(crate) fn pre_get_variables(&self, variables: Vec<FoxVariables>) -> Result<(String, &'static str), FoxError> {
         let path = "/op/v1/device/real/query";
 
         let req = RequestDeviceRealTimeData {
@@ -85,19 +106,21 @@ impl FoxHelper {
         Ok((serde_json::to_string(&req)?, path))
     }
 
-    /// Post network request: Collect real-time data from the inverter
+    /// Post-network request: Process the response from the real-time data request.
     ///
     /// # Arguments
+    /// * `json` - The JSON response string from the API.
     ///
-    /// * 'json' - JSON string to process
-    pub(crate) fn post_get_device_real_time_data(&self, json: &str) -> Result<DeviceRealTime, FoxError> {
+    /// # Returns
+    /// * `Result<VariablesData, FoxError>` - A structure containing the latest data points.
+    pub(crate) fn post_get_variables(&self, json: &str) -> Result<VariablesData, FoxError> {
         let fox_data: DeviceRealTimeResult = serde_json::from_str(json)?;
 
         let mut data_points: HashMap<FoxVariables, VariableDataPoint> = HashMap::new();
 
         // Be defensive: Fox API returns a Vec; can't assume [0] exists.
         let Some(first) = fox_data.result.first() else {
-            return Ok(DeviceRealTime {
+            return Ok(VariablesData {
                 data_points,
             });
         };
@@ -112,16 +135,18 @@ impl FoxHelper {
             data_points.insert(p, VariableDataPoint(value));
         }
 
-        Ok(DeviceRealTime { data_points })
+        Ok(VariablesData { data_points })
     }
 
-    /// Pre-network request: Get setting from the inverter
+    /// Pre-network request: Prepare the request for a single setting.
     ///
-    /// See https://www.foxesscloud.com/public/i18n/en/OpenApiDocument.html#get20the20device20settings20item0a3ca20id3dget20the20device20settings20item4303e203ca3e
+    /// For more information, see the [FoxESS API documentation](https://www.foxesscloud.com/public/i18n/en/OpenApiDocument.html#get20the20device20settings20item0a3ca20id3dget20the20device20settings20item4303e203ca3e).
     ///
     /// # Arguments
+    /// * `setting` - The setting to retrieve.
     ///
-    /// * 'setting' - List of settings to retrieve from the inverter
+    /// # Returns
+    /// * `Result<(String, &'static str), FoxError>` - A tuple containing the JSON request body and the API path.
     pub(crate) fn pre_get_setting(&self, setting: FoxSettings) -> Result<(String, &'static str), FoxError> {
         let path = "/op/v0/device/setting/get";
 
@@ -130,30 +155,31 @@ impl FoxHelper {
         Ok((serde_json::to_string(&req)?, path))
     }
 
-    /// Post-network request: Get setting from the inverter
+    /// Post-network request: Process the response from the get setting request.
     ///
     /// # Arguments
+    /// * `json` - The JSON response string from the API.
     ///
-    /// * 'json' - JSON string to process
+    /// # Returns
+    /// * `Result<String, FoxError>` - The raw string value of the setting.
     pub(crate) fn post_get_setting(&self, json: &str) -> Result<String, FoxError> {
         let fox_data: DeviceSettingsResult = serde_json::from_str(json)?;
 
         Ok(fox_data.result.value)
     }
     
-    /// Pre-network request: Set a single inverter setting using a strongly-typed value.
+    /// Pre-network request: Prepare the request to set a single inverter setting.
     ///
-    ///
-    /// See https://www.foxesscloud.com/public/i18n/en/OpenApiDocument.html#set20the20device20settings20item0a3ca20id3dset20the20device20settings20item4303e203ca3e
+    /// For more information, see the [FoxESS API documentation](https://www.foxesscloud.com/public/i18n/en/OpenApiDocument.html#set20the20device20settings20item0a3ca20id3dset20the20device20settings20item4303e203ca3e).
     ///
     /// # Type Parameters
-    ///
     /// * `S` - A [`SettableSettingSpec`] describing which setting can be set and how to format it.
     ///
     /// # Arguments
+    /// * `value` - The new value for `S::SETTING`.
     ///
-    /// * `value` - The new value for `S::SETTING` (type `S::Value`).
-    ///
+    /// # Returns
+    /// * `Result<(String, &'static str), FoxError>` - A tuple containing the JSON request body and the API path.
     pub(crate) fn pre_set_setting_typed<S: SettableSettingSpec>(&self, value: S::Value) -> Result<(String, &'static str), FoxError> {
         let path = "/op/v0/device/setting/set";
         let data = S::format(&value);
@@ -163,17 +189,19 @@ impl FoxHelper {
         Ok((serde_json::to_string(&req)?, path))
     }
 
-    /// Pre-network request: Set the battery charging time schedule.
-    /// This is the standard charging scheduler setting.
-    /// No time overlaps are permitted between the two schedules.
+    /// Pre-network request: Prepare the request to set the battery charging time schedule.
     ///
-    /// See https://www.foxesscloud.com/public/i18n/en/OpenApiDocument.html#set20the20battery20charging20time0a3ca20id3dset20the20battery20charging20time4303e203ca3e
+    /// This is the standard charging scheduler setting. No time overlaps are permitted between the two schedules.
+    ///
+    /// For more information, see the [FoxESS API documentation](https://www.foxesscloud.com/public/i18n/en/OpenApiDocument.html#set20the20battery20charging20time0a3ca20id3dset20the20battery20charging20time4303e203ca3e).
     ///
     /// # Arguments
+    /// * `enable` - Whether schedule 1 should be enabled.
+    /// * `start` - The start time of schedule 1 as a [`DateTime<Utc>`].
+    /// * `end` - The end time of schedule 1 as a [`DateTime<Utc>`] (non-inclusive).
     ///
-    /// * 'enable' - whether schedule 1 shall be enabled
-    /// * 'start' - start time of schedule 1 as a DateTime<Utc>
-    /// * 'end' - end time of schedule 1 as a DateTime<Utc> (non-inclusive)
+    /// # Returns
+    /// * `Result<(String, &'static str), FoxError>` - A tuple containing the JSON request body and the API path.
     pub (crate) fn pre_set_battery_charging_time_schedule(&self, enable: bool, start: DateTime<Utc>, end: DateTime<Utc>) -> Result<(String,&'static str), FoxError> {
         let path = "/op/v0/device/battery/forceChargeTime/set";
 
@@ -202,11 +230,13 @@ impl FoxHelper {
     }
 
 
-    /// Pre-network request: Builds a request and sends it as a POST.
+    /// Pre-network request: Prepare a POST request.
     ///
     /// # Arguments
+    /// * `path` - The API path, excluding the domain.
     ///
-    /// * path - the API path excluding the domain
+    /// # Returns
+    /// * `(String, HeaderMap)` - A tuple containing the full URL and the required headers.
     pub(crate) fn pre_network_post_request(&self, path: &str) -> (String,HeaderMap) {
         (
             format!("{}{}", self.base_url, path), // Full URL
@@ -214,11 +244,13 @@ impl FoxHelper {
         )
     }
 
-    /// Post-network request: Builds a request and sends it as a POST.
+    /// Post-network request: Validate the response from a POST request.
     ///
     /// # Arguments
+    /// * `json` - The JSON response string to validate.
     ///
-    /// * 'json' - JSON string to process
+    /// # Returns
+    /// * `Result<String, FoxError>` - The original JSON string if the response is successful.
     pub(crate) fn post_network_post_request(&self, json: String) -> Result<String, FoxError> {
         let fox_res: FoxResponse = serde_json::from_str(&json)?;
         if fox_res.errno != 0 {
@@ -229,28 +261,30 @@ impl FoxHelper {
     }
 
     /// Builds a charge time schedule after first checking for inconsistencies.
-    /// Inconsistencies are any of:
-    /// * wrong time, e.g., hour outside 0-23 or minute outside 0-59
-    /// * start time after end time
-    /// * overlapping between schedule 1 and 2 (times are inclusive in both ends)
     ///
-    /// It does correct minor errors:
-    /// * a schedule not enabled is automatically set to zero start and end time
-    /// * a schedule which is enabled but with the same start and end time is disabled and zeroed
+    /// Inconsistencies include:
+    /// * Invalid time (e.g., hour outside 0-23 or minute outside 0-59).
+    /// * Start time after end time.
+    /// * Overlap between schedule 1 and 2 (times are inclusive on both ends).
+    ///
+    /// Minor errors are corrected automatically:
+    /// * A schedule that is not enabled is set to zero start and end time.
+    /// * A schedule that is enabled but has the same start and end time is disabled and zeroed.
     ///
     /// # Arguments
+    /// * `enable_1` - Whether schedule 1 should be enabled.
+    /// * `start_hour_1` - Start hour of schedule 1.
+    /// * `start_minute_1` - Start minute of schedule 1.
+    /// * `end_hour_1` - End hour of schedule 1.
+    /// * `end_minute_1` - End minute of schedule 1.
+    /// * `enable_2` - Whether schedule 2 should be enabled.
+    /// * `start_hour_2` - Start hour of schedule 2.
+    /// * `start_minute_2` - Start minute of schedule 2.
+    /// * `end_hour_2` - End hour of schedule 2.
+    /// * `end_minute_2` - End minute of schedule 2.
     ///
-    /// * 'sn' - the serial number of the inverter
-    /// * 'enable_1' - whether schedule 1 shall be enabled
-    /// * 'start_hour_1' - start hour of schedule 1
-    /// * 'start_minute_1' - start minute of schedule 1
-    /// * 'end_hour_1' - end hour of schedule 1
-    /// * 'end_minute_1' - end minute of schedule 1
-    /// * 'enable_2' - whether schedule 2 shall be enabled
-    /// * 'start_hour_2' - start hour of schedule 2
-    /// * 'start_minute_2' - start minute of schedule 2
-    /// * 'end_hour_2' - end hour of schedule 2
-    /// * 'end_minute_2' - end minute of schedule 2
+    /// # Returns
+    /// * `Result<ChargingTimeSchedule, FoxError>` - The validated [`ChargingTimeSchedule`].
     fn build_charge_time_schedule(
         &self,
         mut enable_1: bool, mut start_hour_1: u8, mut start_minute_1: u8, mut end_hour_1: u8, mut end_minute_1: u8,
@@ -319,13 +353,18 @@ impl FoxHelper {
     }
 }
 
-/// Generates http headers required by Fox Open API, this includes also building a
-/// md5 hashed signature.
+/// Generates HTTP headers required by the Fox Open API.
+///
+/// This includes building an MD5 hashed signature.
 ///
 /// # Arguments
+/// * `api_key` - The FoxESS API Key.
+/// * `path` - The API path, excluding the domain.
+/// * `timestamp_millis` - The current timestamp in milliseconds.
+/// * `extra` - Any extra headers to add.
 ///
-/// * 'path' - the path, excluding the domain part, to the FoxESS specific API
-/// * 'extra' - any extra headers to add besides FoxCloud standards
+/// # Returns
+/// * `HeaderMap` - The generated headers.
 fn generate_headers(api_key: &str, path: &str, timestamp_millis: i64, extra: Option<Vec<(&str, &str)>>) -> HeaderMap {
     let mut headers = HeaderMap::new();
 
@@ -349,17 +388,19 @@ fn generate_headers(api_key: &str, path: &str, timestamp_millis: i64, extra: Opt
     headers
 }
 
-/// Transforms device history data to a format easier to save as non-json file
+/// Transforms device history data to a format easier to save.
 ///
 /// # Arguments
+/// * `input` - The raw data to transform.
 ///
-/// * 'input' - the data to transform
-fn transform_history_data(input: Vec<DeviceHistoryData>) -> Result<DeviceHistory, FoxError> {
-    let mut series: HashMap<FoxVariables, Vec<HistoryDataSet<f64>>> = HashMap::new();
+/// # Returns
+/// * `Result<VariablesDataHistory, FoxError>` - The transformed historical data.
+fn transform_history_data(input: Vec<DeviceHistoryData>) -> Result<VariablesDataHistory, FoxError> {
+    let mut series: HashMap<FoxVariables, Vec<VariableDataSet<f64>>> = HashMap::new();
 
     // Be defensive: Fox API returns a Vec; can't assume [0] exists.
     let Some(first) = input.first() else {
-        return Ok(DeviceHistory {
+        return Ok(VariablesDataHistory {
             series,
         });
     };
@@ -377,20 +418,22 @@ fn transform_history_data(input: Vec<DeviceHistoryData>) -> Result<DeviceHistory
             |d| series
                 .entry(p)
                 .or_insert_with(Vec::new)
-                .push(HistoryDataSet { date_time: utc, data: d.value })
+                .push(VariableDataSet { date_time: utc, data: d.value })
         );
     }
 
-    Ok(DeviceHistory {
+    Ok(VariablesDataHistory {
         series,
     })
 }
 
-/// Converts a date time string in special Fox format to UTC
+/// Converts a date time string in the Fox API format to UTC.
 ///
 /// # Arguments
+/// * `time` - A date time string (e.g., "2025-12-03 00:08:51 CET+0100").
 ///
-/// * 'time' - date time string in 2025-12-03 00:08:51 CET+0100 format
+/// # Returns
+/// * `Result<DateTime<Utc>, FoxError>` - The parsed time in UTC.
 fn cet_to_utc(time: &str) -> Result<DateTime<Utc>, FoxError> {
     let dt = DateTime::parse_from_str(&time.replace("+", " +"), "%Y-%m-%d %H:%M:%S %Z %z")?;
     Ok(dt.with_timezone(&Utc))
