@@ -43,10 +43,10 @@ pub struct VariableDataPoint (pub f64);
 /// use foxess::{VariablesData, FoxVariables, VariableDataPoint};
 ///
 /// # let mut data_points = HashMap::new();
-/// # data_points.insert(FoxVariables::GenerationPower, VariableDataPoint(1200.0));
+/// # data_points.insert(FoxVariables::PvPower, VariableDataPoint(1200.0));
 /// # let instance = unsafe { std::mem::transmute::<HashMap<FoxVariables, VariableDataPoint>, VariablesData>(data_points) };
 ///
-/// let value = instance.get(FoxVariables::GenerationPower);
+/// let value = instance.get(FoxVariables::PvPower);
 /// if let Some(v) = value {
 ///     println!("Generation Power: {}W", v);
 /// }
@@ -71,9 +71,9 @@ impl VariablesData {
     /// # use std::collections::HashMap;
     /// # use foxess::{VariablesData, FoxVariables, VariableDataPoint};
     /// # let mut data_points = HashMap::new();
-    /// # data_points.insert(FoxVariables::GenerationPower, VariableDataPoint(1200.0));
+    /// # data_points.insert(FoxVariables::PvPower, VariableDataPoint(1200.0));
     /// # let instance = unsafe { std::mem::transmute::<HashMap<FoxVariables, VariableDataPoint>, VariablesData>(data_points) };
-    /// let value = instance.get(FoxVariables::GenerationPower);
+    /// let value = instance.get(FoxVariables::PvPower);
     /// ```
     pub fn get(&self, p: FoxVariables) -> Option<f64> {
         self.data_points.get(&p).map(|v| v.0)
@@ -107,4 +107,20 @@ impl VariablesData {
     pub fn get_u8_percent(&self, p: FoxVariables) -> Option<u8> {
         self.data_points.get(&p).map(|v| v.0.round().clamp(0.0, 100.0) as u8)
     }
+}
+
+/// Information about a variable, including its key, descriptive name, and optional unit.
+pub struct VariableInfo {
+    /// The unique identifier or key of the variable.
+    pub variable: String,
+    /// The human-readable name of the variable.
+    pub name: String,
+    /// The unit of measurement for the variable, if applicable (probably a string or an error number if not).
+    pub unit: Option<String>,
+}
+
+/// A collection of available variables.
+pub struct AvailableVariables {
+    /// A list of `VariableInfo` objects representing the variables that are available.
+    pub variables: Vec<VariableInfo>,
 }

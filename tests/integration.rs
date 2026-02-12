@@ -28,10 +28,18 @@ async fn it_works() {
         panic!("Failed to create Fox instance: {e}");
     });
 
+    let variables = fox.get_available_variables().await.unwrap_or_else(|e| {
+        panic!("Failed to get available variables: {e}");
+    });
+
+    for v in variables.variables {
+        println!("Variable: {}, Name: {}, Unit: {:?}", v.variable, v.name, v.unit.unwrap_or("String".to_string()));
+    }
+
     let bat_temp = fox.get_variable_typed::<BatTemperature>().await.unwrap_or_else(|e| {
         panic!("Failed to get device variables: {e}");
     });
-    println!("{:?}", bat_temp);
+    println!("Battery temperature:{:?}", bat_temp);
 }
 
 #[cfg(feature = "blocking")]
@@ -57,10 +65,18 @@ fn it_works() {
         panic!("Failed to create Fox instance: {e}");
     });
 
+    let variables = fox.get_available_variables().unwrap_or_else(|e| {
+        panic!("Failed to get available variables: {e}");
+    });
+
+    for v in variables.variables {
+        println!("Variable: {}, Name: {}, Unit: {:?}", v.variable, v.name, v.unit.unwrap_or("String".to_string()));
+    }
+
     let bat_temp = fox.get_variable_typed::<BatTemperature>().unwrap_or_else(|e| {
         panic!("Failed to get device variables: {e}");
     });
-    println!("{:?}", bat_temp);
+    println!("Battery temperature:{:?}", bat_temp);
 }
 
 /// Reads a credential from the file system.

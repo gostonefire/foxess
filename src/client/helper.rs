@@ -21,8 +21,9 @@ use reqwest::header::{HeaderMap, HeaderName, HeaderValue};
 use serde::{Deserialize, Serialize};
 use crate::{FoxError, FoxSettings, FoxVariables};
 use crate::fox_settings::SettableSettingSpec;
-use crate::models::{VariablesDataHistory, VariablesData, VariableDataSet, VariableDataPoint};
-use crate::models::dto::{ChargingTime, ChargingTimeSchedule, DeviceHistoryData, DeviceHistoryResult, DeviceRealTimeResult, DeviceSettingsResult, RequestDeviceHistoryData, RequestDeviceRealTimeData, RequestSettingsData, SetSetting};
+use crate::models::{VariablesDataHistory, VariablesData, VariableDataSet, VariableDataPoint, VariableInfo, AvailableVariables};
+use crate::models::dto::{ChargingTime, ChargingTimeSchedule, DeviceHistoryData, DeviceHistoryResult, DeviceRealTimeResult, DeviceSettingsResult, DeviceVariablesResult, RequestDeviceHistoryData, RequestDeviceRealTimeData, RequestSettingsData, SetSetting};
+
 
 pub(crate) struct FoxHelper {
     api_key: String,
@@ -229,6 +230,51 @@ impl FoxHelper {
         Ok((req_json, path))
     }
 
+    /// Pre-network request: Prepare the request for available variables.
+    ///
+    /// For more information, see the [FoxESS API documentation](https://www.foxesscloud.com/public/i18n/en/OpenApiDocument.html#get20available20variables0a3ca20id3dget20available20variables4303e203ca3e).
+    ///
+    /// # Returns
+    /// * `Result<&'static str, FoxError>` - A string containing the API path.
+    pub(crate) fn pre_get_available_variables(&self) -> Result<&'static str, FoxError> {
+        let path = "/op/v0/device/variable/get";
+
+        Ok(path)
+    }
+
+    /// Post-network request: Process the response from the get available variables request.
+    ///
+    /// # Arguments
+    /// * `json` - The JSON response string from the API.
+    ///
+    /// # Returns
+    /// * `Result<String, FoxError>` - A vector with available variables.
+    pub(crate) fn post_get_available_variables(&self, json: &str) -> Result<AvailableVariables, FoxError> {
+        let fox_data: DeviceVariablesResult = serde_json::from_str(json)?;
+
+        let variables: Vec<VariableInfo> = fox_data
+            .result
+            .into_iter()
+            .filter_map(|mut v| {
+                // Each entry is expected to be a one-key map; skip unexpected shapes.
+                let (variable, info) = v.drain().next()?;
+
+                let name = info
+                    .name
+                    .get("en")
+                    .cloned()
+                    .unwrap_or_else(|| variable.clone());
+
+                Some(VariableInfo {
+                    variable,
+                    name,
+                    unit: info.unit,
+                })
+            })
+            .collect();
+
+        Ok(AvailableVariables { variables })
+    }
 
     /// Pre-network request: Prepare a POST request.
     ///
@@ -252,6 +298,36 @@ impl FoxHelper {
     /// # Returns
     /// * `Result<String, FoxError>` - The original JSON string if the response is successful.
     pub(crate) fn post_network_post_request(&self, json: String) -> Result<String, FoxError> {
+        let fox_res: FoxResponse = serde_json::from_str(&json)?;
+        if fox_res.errno != 0 {
+            return Err(FoxError::FoxCloud(format!("errno: {}, msg: {}", fox_res.errno, fox_res.msg)));
+        }
+
+        Ok(json)
+    }
+
+    /// Pre-network request: Prepare a GET request.
+    ///
+    /// # Arguments
+    /// * `path` - The API path, excluding the domain.
+    ///
+    /// # Returns
+    /// * `(String, HeaderMap)` - A tuple containing the full URL and the required headers.
+    pub(crate) fn pre_network_get_request(&self, path: &str) -> (String,HeaderMap) {
+        (
+            format!("{}{}", self.base_url, path), // Full URL
+            generate_headers(&self.api_key, path, (self.now_millis)(), Some(vec![("Content-Type", "application/json")])), // Headers
+        )
+    }
+
+    /// Post-network request: Validate the response from a POST request.
+    ///
+    /// # Arguments
+    /// * `json` - The JSON response string to validate.
+    ///
+    /// # Returns
+    /// * `Result<String, FoxError>` - The original JSON string if the response is successful.
+    pub(crate) fn post_network_get_request(&self, json: String) -> Result<String, FoxError> {
         let fox_res: FoxResponse = serde_json::from_str(&json)?;
         if fox_res.errno != 0 {
             return Err(FoxError::FoxCloud(format!("errno: {}, msg: {}", fox_res.errno, fox_res.msg)));

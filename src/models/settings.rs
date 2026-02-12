@@ -43,10 +43,10 @@ pub struct SettingsDataPoint (pub String);
 /// use foxess::{SettingsData, FoxSettings, SettingsDataPoint};
 ///
 /// # let mut data_points = HashMap::new();
-/// # data_points.insert(FoxSettings::MinSoc, SettingsDataPoint("10".to_string()));
+/// # data_points.insert(FoxSettings::MinSocOnGrid, SettingsDataPoint("10".to_string()));
 /// # let instance = unsafe { std::mem::transmute::<HashMap<FoxSettings, SettingsDataPoint>, SettingsData>(data_points) };
 ///
-/// let value = instance.get(FoxSettings::MinSoc);
+/// let value = instance.get(FoxSettings::MinSocOnGrid);
 /// if let Some(v) = value {
 ///     println!("Min SoC: {}", v);
 /// }
@@ -71,9 +71,9 @@ impl SettingsData {
     /// # use std::collections::HashMap;
     /// # use foxess::{SettingsData, FoxSettings, SettingsDataPoint};
     /// # let mut data_points = HashMap::new();
-    /// # data_points.insert(FoxSettings::MinSoc, SettingsDataPoint("10".to_string()));
+    /// # data_points.insert(FoxSettings::MinSocOnGrid, SettingsDataPoint("10".to_string()));
     /// # let instance = unsafe { std::mem::transmute::<HashMap<FoxSettings, SettingsDataPoint>, SettingsData>(data_points) };
-    /// let value = instance.get(FoxSettings::MinSoc);
+    /// let value = instance.get(FoxSettings::MinSocOnGrid);
     /// ```
     pub fn get(&self, p: FoxSettings) -> Option<String> {
         self.data_points.get(&p).map(|v| v.0.clone())
@@ -95,9 +95,9 @@ impl SettingsData {
     /// # use std::collections::HashMap;
     /// # use foxess::{SettingsData, FoxSettings, SettingsDataPoint};
     /// # let mut data_points = HashMap::new();
-    /// # data_points.insert(FoxSettings::MinSoc, SettingsDataPoint("10.5".to_string()));
+    /// # data_points.insert(FoxSettings::MinSocOnGrid, SettingsDataPoint("10.5".to_string()));
     /// # let instance = unsafe { std::mem::transmute::<HashMap<FoxSettings, SettingsDataPoint>, SettingsData>(data_points) };
-    /// match instance.get_f64(FoxSettings::MinSoc) {
+    /// match instance.get_f64(FoxSettings::MinSocOnGrid) {
     ///     Ok(Some(v)) => println!("Value: {}", v),
     ///     Ok(None) => println!("Not found"),
     ///     Err(e) => println!("Error: {}", e),
@@ -129,9 +129,9 @@ impl SettingsData {
     /// # use std::collections::HashMap;
     /// # use foxess::{SettingsData, FoxSettings, SettingsDataPoint};
     /// # let mut data_points = HashMap::new();
-    /// # data_points.insert(FoxSettings::MinSoc, SettingsDataPoint("10".to_string()));
+    /// # data_points.insert(FoxSettings::MinSocOnGrid, SettingsDataPoint("10".to_string()));
     /// # let instance = unsafe { std::mem::transmute::<HashMap<FoxSettings, SettingsDataPoint>, SettingsData>(data_points) };
-    /// match instance.get_u8_percent(FoxSettings::MinSoc) {
+    /// match instance.get_u8_percent(FoxSettings::MinSocOnGrid) {
     ///     Ok(Some(v)) => println!("Value: {}%", v),
     ///     Ok(None) => println!("Not found"),
     ///     Err(e) => println!("Error: {}", e),

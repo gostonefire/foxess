@@ -4,6 +4,7 @@
 use serde::{Deserialize, Deserializer, Serialize};
 use serde::de::Error;
 use serde_json::Value;
+use std::collections::HashMap;
 
 
 /// Request for device history data.
@@ -153,6 +154,22 @@ pub struct SettingsData {
 pub struct DeviceSettingsResult {
     /// The settings data.
     pub result: SettingsData,
+}
+
+/// Variable information containing unit and localized names.
+#[derive(Deserialize)]
+pub struct DeviceVariableInfo {
+    /// The unit of the variable (e.g., "kW", "V").
+    pub unit: Option<String>,
+    /// Localized names for the variable.
+    pub name: HashMap<String, String>,
+}
+
+/// Result of a device variables query.
+#[derive(Deserialize)]
+pub struct DeviceVariablesResult {
+    /// List of variables, where each entry is a map from variable name to its info.
+    pub result: Vec<HashMap<String, DeviceVariableInfo>>,
 }
 
 

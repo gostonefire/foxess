@@ -8,4 +8,5 @@ pub mod settings;
 pub use history::{VariableDataSet, VariablesDataHistory};
 pub use fox_variables::FoxVariables;
 pub use fox_settings::FoxSettings;
-pub use variables::{VariableDataPoint, VariablesData};
+pub use variables::{VariableDataPoint, VariablesData, AvailableVariables, VariableInfo};
+pub use settings::{SettingsData, SettingsDataPoint};

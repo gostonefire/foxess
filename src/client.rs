@@ -23,7 +23,7 @@ use std::time::Duration;
 use chrono::{DateTime, Utc};
 use crate::client::helper::FoxHelper;
 use crate::error::FoxError;
-use crate::models::{VariablesDataHistory, VariablesData, FoxVariables};
+use crate::models::{VariablesDataHistory, VariablesData, FoxVariables, AvailableVariables};
 use crate::models::fox_settings::{FoxSettings, SettableSettingSpec, SettingSpec};
 use crate::models::fox_variables::VariableSpec;
 use crate::models::settings::{SettingsData, SettingsDataPoint};
@@ -311,6 +311,22 @@ impl Fox {
         ).await
     }
 
+    /// Gets a list of available variables from the FoxESS Cloud.
+    ///
+    /// For more information, see the [FoxESS API documentation](https://www.foxesscloud.com/public/i18n/en/OpenApiDocument.html#get20available20variables0a3ca20id3dget20available20variables4303e203ca3e).
+    ///
+    /// # Returns
+    /// * `Result<AvailableVariables, FoxError>` - A vector of available variables.
+    pub async fn get_available_variables(&self) -> Result<AvailableVariables, FoxError> {
+        let path = self.fox_helper.pre_get_available_variables()?;
+
+        let json = self.get_request(path, None).await?;
+
+        let available_variables = self.fox_helper.post_get_available_variables(&json)?;
+
+        Ok(available_variables)
+    }
+
     /// Builds and sends a POST request to the FoxESS API.
     ///
     /// This is an internal helper method that handles request signing and network communication.
@@ -335,6 +351,32 @@ impl Fox {
         }
 
         Ok(self.fox_helper.post_network_post_request(req.text().await?)?)
+    }
+
+    /// Builds and sends a GET request to the FoxESS API.
+    ///
+    /// This is an internal helper method that handles request signing and network communication.
+    ///
+    /// # Arguments
+    /// * `path` - The API endpoint path (excluding the domain).
+    /// * `query` - The query parameters for the request.
+    ///
+    /// # Returns
+    /// * `Result<String, FoxError>` - The JSON response from the API.
+    async fn get_request(&self, path: &str, query: Option<Vec<(String,String)>>) -> Result<String, FoxError> {
+        let (url, headers) = self.fox_helper.pre_network_get_request(path);
+
+        let req = self.client.get(url)
+            .headers(headers)
+            .query(&query)
+            .send().await?;
+
+        let status = req.status();
+        if !status.is_success() {
+            return Err(FoxError::FoxCloud(format!("{:?}", status)));
+        }
+
+        Ok(self.fox_helper.post_network_get_request(req.text().await?)?)
     }
 }
 
@@ -595,6 +637,22 @@ impl Fox {
         )
     }
 
+    /// Gets a list of available variables from the FoxESS Cloud.
+    ///
+    /// For more information, see the [FoxESS API documentation](https://www.foxesscloud.com/public/i18n/en/OpenApiDocument.html#get20available20variables0a3ca20id3dget20available20variables4303e203ca3e).
+    ///
+    /// # Returns
+    /// * `Result<AvailableVariables, FoxError>` - A vector of available variables.
+    pub fn get_available_variables(&self) -> Result<AvailableVariables, FoxError> {
+        let path = self.fox_helper.pre_get_available_variables()?;
+
+        let json = self.get_request(path, None)?;
+
+        let available_variables = self.fox_helper.post_get_available_variables(&json)?;
+
+        Ok(available_variables)
+    }
+
     /// Builds and sends a POST request to the FoxESS API.
     ///
     /// This is an internal helper method that handles request signing and network communication.
@@ -619,6 +677,32 @@ impl Fox {
         }
 
         Ok(self.fox_helper.post_network_post_request(req.text()?)?)
+    }
+
+    /// Builds and sends a GET request to the FoxESS API.
+    ///
+    /// This is an internal helper method that handles request signing and network communication.
+    ///
+    /// # Arguments
+    /// * `path` - The API endpoint path (excluding the domain).
+    /// * `query` - The query parameters for the request.
+    ///
+    /// # Returns
+    /// * `Result<String, FoxError>` - The JSON response from the API.
+    fn get_request(&self, path: &str, query: Option<Vec<(String,String)>>) -> Result<String, FoxError> {
+        let (url, headers) = self.fox_helper.pre_network_get_request(path);
+
+        let req = self.client.get(url)
+            .headers(headers)
+            .query(&query)
+            .send()?;
+
+        let status = req.status();
+        if !status.is_success() {
+            return Err(FoxError::FoxCloud(format!("{:?}", status)));
+        }
+
+        Ok(self.fox_helper.post_network_get_request(req.text()?)?)
     }
 }
 
