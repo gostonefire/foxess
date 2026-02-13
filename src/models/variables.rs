@@ -115,7 +115,7 @@ pub struct VariableInfo {
     pub variable: String,
     /// The human-readable name of the variable.
     pub name: String,
-    /// The unit of measurement for the variable, if applicable (probably a string or an error number if not).
+    /// The unit of measurement for the variable, if applicable (probably a number of something if not).
     pub unit: Option<String>,
 }
 

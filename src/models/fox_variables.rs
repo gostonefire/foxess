@@ -3,7 +3,7 @@
 //!
 //! The [VariableSpec] is implemented for marker structs to be used together with typed get functions.
 //!
-//! FoxESS Cloud currently supports many variables, end the foxess crate implements only a subset from them.
+//! FoxESS Cloud currently supports many variables, and the foxess crate implements only a subset from them.
 //!
 //!
 

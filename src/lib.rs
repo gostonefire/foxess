@@ -25,10 +25,14 @@
 //! // Non-blocking (async)
 //! foxess = “0.x.y”
 //!
+//! // Non-blocking (async) if you want clarity
+//! foxess = { version = “0.x.y”, features = ["async"] }
+//!
 //! // Blocking
 //! foxess = { version = “0.x.y”, default-features = false, features = [“blocking”] }
 //! ```
-//! ## Example non-blocking request for battery State of Charge
+//! ## Examples
+//! ### Non-blocking request for battery State of Charge
 //! ```rust,no_run
 //! use foxess::Fox;
 //! use foxess::fox_variables::SoC;
@@ -42,6 +46,42 @@
 //! let soc = fox.get_variable_typed::<SoC>().await.unwrap();
 //!
 //! println!("Current battery State of Charge: {}%", soc);
+//! # });
+//! ```
+//! ### Non-blocking request for one-day PV power (Photo Voltaic), loads power (household load) and battery SoC
+//! ```rust,no_run
+//! use std::ops::Add;
+//! use chrono::{TimeZone, Utc, Local, Duration};
+//! use foxess::{Fox, FoxVariables};
+//!
+//! # let rt = tokio::runtime::Runtime::new().unwrap();
+//! # rt.block_on(async {
+//! let api_key = "my_api_key";
+//! let sn = "my_inverter_sn";
+//!
+//! let start = Local.with_ymd_and_hms(2026, 2, 1, 0, 0, 0).unwrap().with_timezone(&Utc);
+//! let end = start.add(Duration::days(1));
+//! let variables = vec![FoxVariables::PvPower, FoxVariables::LoadsPower, FoxVariables::SoC];
+//!
+//! let fox = Fox::new(api_key, sn, 30).unwrap();
+//! let history = fox.get_variables_history(start, end, variables).await.unwrap();
+//!
+//! let pv_history = history.get(FoxVariables::PvPower);
+//! let loads_history = history.get(FoxVariables::LoadsPower);
+//! let soc_history = history.get_u8_percent(FoxVariables::SoC);
+//! let soh_history = history.get_u8_percent(FoxVariables::SoH);
+//!
+//! // Expect these to have values
+//! assert!(pv_history.is_some());
+//! assert!(loads_history.is_some());
+//! assert!(soc_history.is_some());
+//!
+//! // Expect this to be None
+//! assert!(soh_history.is_none());
+//!
+//! if let Some(first) = pv_history.unwrap().first() {
+//!     println!("PV power: {} W at {:?}", first.data, first.date_time);
+//! }
 //! # });
 //! ```
 //!
