@@ -28,12 +28,24 @@ async fn it_works() {
         panic!("Failed to create Fox instance: {e}");
     });
 
-    let variables = fox.get_available_variables().await.unwrap_or_else(|e| {
+    let mut variables = fox.get_available_variables().await.unwrap_or_else(|e| {
         panic!("Failed to get available variables: {e}");
     });
 
+    variables.variables.sort_by_key(|v| v.variable.to_ascii_lowercase());
+
     for v in variables.variables {
-        println!("Variable: {}, Name: {}, Unit: {:?}", v.variable, v.name, v.unit.unwrap_or("String".to_string()));
+        let mut chars = v.variable.chars();
+        let variant = match chars.next() {
+            Some(first) => format!("{}{}", first.to_uppercase(), chars.as_str()),
+            None => String::new(),
+        };
+
+        let unit_suffix = v.unit.as_deref().map_or(String::new(), |u| format!(", unit: {u}"));
+
+        if !variant.is_empty() {
+            println!(r#"[{variant}, "{}", "{}{}"],"#, v.variable, v.name, unit_suffix);
+        }
     }
 
     let bat_temp = fox.get_variable_typed::<BatTemperature>().await.unwrap_or_else(|e| {
@@ -65,12 +77,24 @@ fn it_works() {
         panic!("Failed to create Fox instance: {e}");
     });
 
-    let variables = fox.get_available_variables().unwrap_or_else(|e| {
+    let mut variables = fox.get_available_variables().unwrap_or_else(|e| {
         panic!("Failed to get available variables: {e}");
     });
 
+    variables.variables.sort_by_key(|v| v.variable.to_ascii_lowercase());
+
     for v in variables.variables {
-        println!("Variable: {}, Name: {}, Unit: {:?}", v.variable, v.name, v.unit.unwrap_or("String".to_string()));
+        let mut chars = v.variable.chars();
+        let variant = match chars.next() {
+            Some(first) => format!("{}{}", first.to_uppercase(), chars.as_str()),
+            None => String::new(),
+        };
+
+        let unit_suffix = v.unit.as_deref().map_or(String::new(), |u| format!(", unit: {u}"));
+
+        if !variant.is_empty() {
+            println!(r#"[{variant}, "{}", "{}{}"],"#, v.variable, v.name, unit_suffix);
+        }
     }
 
     let bat_temp = fox.get_variable_typed::<BatTemperature>().unwrap_or_else(|e| {

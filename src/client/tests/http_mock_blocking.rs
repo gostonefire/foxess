@@ -221,7 +221,7 @@ fn blocking_get_variables_parses_scientific_notation() {
 #[test]
 fn blocking_get_variable_typed_parses_scientific_notation() {
     use crate::Fox;
-    use crate::models::fox_variables::SoC;
+    use crate::fox_variables::SoC;
 
     const API_KEY: &str = "TEST_API_KEY";
     const SN: &str = "TEST_SN";
@@ -269,7 +269,7 @@ fn blocking_get_variable_typed_parses_scientific_notation() {
 #[test]
 fn blocking_get_variable_typed_outside_valid_range() {
     use crate::Fox;
-    use crate::models::fox_variables::SoC;
+    use crate::fox_variables::SoC;
 
     const API_KEY: &str = "TEST_API_KEY";
     const SN: &str = "TEST_SN";

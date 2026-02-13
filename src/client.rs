@@ -23,9 +23,8 @@ use std::time::Duration;
 use chrono::{DateTime, Utc};
 use crate::client::helper::FoxHelper;
 use crate::error::FoxError;
-use crate::models::{VariablesDataHistory, VariablesData, FoxVariables, AvailableVariables};
+use crate::models::{VariablesDataHistory, VariablesData, FoxVariables, AvailableVariables, VariableSpec};
 use crate::models::fox_settings::{FoxSettings, SettableSettingSpec, SettingSpec};
-use crate::models::fox_variables::VariableSpec;
 use crate::models::settings::{SettingsData, SettingsDataPoint};
 
 const DEFAULT_REQUEST_DOMAIN: &str = "https://www.foxesscloud.com";

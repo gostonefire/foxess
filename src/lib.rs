@@ -69,7 +69,7 @@
 //! let pv_history = history.get(FoxVariables::PvPower);
 //! let loads_history = history.get(FoxVariables::LoadsPower);
 //! let soc_history = history.get_u8_percent(FoxVariables::SoC);
-//! let soh_history = history.get_u8_percent(FoxVariables::SoH);
+//! let soh_history = history.get_u8_percent(FoxVariables::SOH);
 //!
 //! // Expect these to have values
 //! assert!(pv_history.is_some());
@@ -126,12 +126,13 @@ pub mod fox_variables {
     //! This module re-exports the fox_variables module from the models module.
     //!
 
-    pub use crate::models::fox_variables::{
+    pub use crate::models::fox_variables::builtins::{
         PvPower,
         LoadsPower,
         SoC,
         SoH,
         BatTemperature,
-        VariableSpec,
     };
+
+    pub use crate::models::fox_variables::spec::VariableSpec;
 }
