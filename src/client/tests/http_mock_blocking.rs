@@ -470,6 +470,95 @@ fn blocking_set_battery_charging_time_schedule_end_before_start() {
     assert!(msg.contains("charge schedule 1 start time is after end time"));
 }
 
+/// Verifies that available variables are correctly parsed from the API response, including enumeration values.
+///
+#[cfg(feature = "blocking")]
+#[test]
+fn blocking_get_available_variables() {
+    use crate::Fox;
+
+    const TS: i64 = 1_700_000_000_000;
+
+    fn fixed_now() -> i64 { TS }
+
+    let server = MockServer::start();
+
+    let _m = server.mock(|when, then| {
+        when.method(GET);
+        then.status(200)
+            .header("Content-Type", "application/json")
+            .body(r#"{
+                "errno": 0,
+                "msg": "Operation successful",
+                "result": [
+                    {
+                        "pvPower": {
+                            "unit": "kW",
+                            "Grid-tied inverter": true,
+                            "name": {
+                                "de": "PV Leistung",
+                                "pt": "Potência PV",
+                                "en": "PVPower",
+                                "zh_CN": "PV功率",
+                                "pl": "Moc PV",
+                                "fr": "PV Puissance"
+                            },
+                            "Energy-storage inverter": true
+                        }
+                    },
+                    {
+                        "SoC": {
+                            "unit": "%",
+                            "Grid-tied inverter": false,
+                            "name": {
+                                "de": "SoC",
+                                "pt": "SoC",
+                                "en": "SoC",
+                                "zh_CN": "SoC",
+                                "pl": "SoC",
+                                "fr": "SoC"
+                            },
+                            "Energy-storage inverter": true
+                        }
+                    },
+                    {
+                        "runningState": {
+                            "Grid-tied inverter": true,
+                            "name": {
+                                "de": "Running State",
+                                "pt": "Running State",
+                                "en": "Running State",
+                                "zh_CN": "运行状态",
+                                "pl": "Running State",
+                                "fr": "Running State"
+                            },
+                            "Energy-storage inverter": true,
+                            "enum": {
+                                "165": "fault",
+                                "166": "permanent-fault",
+                                "167": "standby",
+                                "168": "upgrading",
+                                "169": "fct",
+                                "170": "illegal",
+                                "160": "self-test",
+                                "161": "waiting",
+                                "162": "checking",
+                                "163": "on-grid",
+                                "164": "off-grid"
+                            }
+                        }
+                    }
+                ]
+            }"#);
+    });
+
+    let fox = Fox::new_with_base_url_and_clock("TEST_API_KEY", "TEST_SN", 5, &server.base_url(), fixed_now).unwrap();
+    let res = fox.get_available_variables().unwrap();
+
+    assert_eq!(res.variables.len(), 3);
+    assert!(res.variables.iter().filter_map(|v| v.enumeration.as_ref()).any(|e| e.contains_key("163")));
+}
+
 /// Verifies that non-zero `errno` values in the API response are correctly mapped to `FoxError`.
 #[cfg(feature = "blocking")]
 #[test]

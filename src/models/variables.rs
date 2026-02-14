@@ -109,7 +109,7 @@ impl VariablesData {
     }
 }
 
-/// Information about a variable, including its key, descriptive name, and optional unit.
+/// Information about a variable, including its key, descriptive name, optional unit, and optional enumeration values.
 pub struct VariableInfo {
     /// The unique identifier or key of the variable.
     pub variable: String,
@@ -117,6 +117,8 @@ pub struct VariableInfo {
     pub name: String,
     /// The unit of measurement for the variable, if applicable (probably a number of something if not).
     pub unit: Option<String>,
+    /// Enumeration values for the variable, if any.
+    pub enumeration: Option<HashMap<String, String>>,
 }
 
 /// A collection of available variables.

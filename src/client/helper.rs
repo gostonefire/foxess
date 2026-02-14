@@ -269,6 +269,7 @@ impl FoxHelper {
                     variable,
                     name,
                     unit: info.unit,
+                    enumeration: info.enumeration,
                 })
             })
             .collect();

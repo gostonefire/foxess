@@ -3,7 +3,7 @@ use std::{env, fs};
 use std::path::PathBuf;
 use thiserror::Error;
 use foxess::Fox;
-use foxess::fox_variables::BatTemperature;
+use foxess::fox_variables::RunningState;
 
 #[cfg(feature = "async")]
 #[tokio::test]
@@ -42,16 +42,26 @@ async fn it_works() {
         };
 
         let unit_suffix = v.unit.as_deref().map_or(String::new(), |u| format!(", unit: {u}"));
+        let enum_suffix = if v.enumeration.is_some() {
+            let mut items: Vec<String> = v.enumeration.unwrap()
+                .iter()
+                .map(|(k, v)| format!(r#""{}" => "{}""#, k, v))
+                .collect();
+            items.sort();
+            let joined = items.join(", ");
+
+            format!("; values: {{ {joined} }}")
+        } else { "".to_string() };
 
         if !variant.is_empty() {
-            println!(r#"[{variant}, "{}", "{}{}"],"#, v.variable, v.name, unit_suffix);
+            println!(r#"[{variant}, "{}", "{}{}"{}],"#, v.variable, v.name, unit_suffix, enum_suffix);
         }
     }
 
-    let bat_temp = fox.get_variable_typed::<BatTemperature>().await.unwrap_or_else(|e| {
+    let running_state = fox.get_variable_typed::<RunningState>().await.unwrap_or_else(|e| {
         panic!("Failed to get device variables: {e}");
     });
-    println!("Battery temperature:{:?}", bat_temp);
+    println!("Running state: {}", running_state);
 }
 
 #[cfg(feature = "blocking")]
@@ -91,16 +101,26 @@ fn it_works() {
         };
 
         let unit_suffix = v.unit.as_deref().map_or(String::new(), |u| format!(", unit: {u}"));
+        let enum_suffix = if v.enumeration.is_some() {
+            let mut items: Vec<String> = v.enumeration.unwrap()
+                .iter()
+                .map(|(k, v)| format!(r#""{}" => "{}""#, k, v))
+                .collect();
+            items.sort();
+            let joined = items.join(", ");
+
+            format!("; values: {{ {joined} }}")
+        } else { "".to_string() };
 
         if !variant.is_empty() {
-            println!(r#"[{variant}, "{}", "{}{}"],"#, v.variable, v.name, unit_suffix);
+            println!(r#"[{variant}, "{}", "{}{}"{}],"#, v.variable, v.name, unit_suffix, enum_suffix);
         }
     }
 
-    let bat_temp = fox.get_variable_typed::<BatTemperature>().unwrap_or_else(|e| {
+    let running_state = fox.get_variable_typed::<RunningState>().unwrap_or_else(|e| {
         panic!("Failed to get device variables: {e}");
     });
-    println!("Battery temperature:{:?}", bat_temp);
+    println!("Running state: {}", running_state);
 }
 
 /// Reads a credential from the file system.

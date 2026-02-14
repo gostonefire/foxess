@@ -133,6 +133,7 @@ pub mod fox_variables {
         SoC,
         SoH,
         BatTemperature,
+        RunningState,
     };
 
     pub use crate::models::fox_variables::spec::VariableSpec;

@@ -67,6 +67,25 @@ impl VariableSpec for BatTemperature {
     }
 }
 
+/// Specification for the `RunningState` variable.
+/// 
+/// When retrieving the value for `RunningState` from the inverter, the value is an integer number.
+/// To get what that number actually means, use the [Fox::get_available_variables](crate::Fox::get_available_variables)
+/// function and look up the value in the attached enumeration field for `RunningState`.
+pub struct RunningState;
+impl VariableSpec for RunningState {
+    type Value = i64;
+    const VARIABLE: FoxVariables = FoxVariables::RunningState;
+
+    fn into(raw: f64) -> Result<Self::Value, FoxError> {
+        try_f64_to_i64(raw).map_err(|e| FoxError::VariableConversionError {
+            variable: Self::VARIABLE.as_str(),
+            value: raw.to_string(),
+            error: e.to_string(),
+        })
+    }
+}
+
 /// Attempts to convert a floating-point value to an 8-bit unsigned integer percentage.
 ///
 /// The value is rounded to the nearest integer and checked to be in the range [0, 100].
@@ -88,4 +107,21 @@ fn try_f64_to_u8_percentage(x: f64) -> Result<u8, &'static str> {
     }
 
     Ok(y as u8)
+}
+
+/// Attempts to convert a floating-point value to a 64-bit integer.
+///
+/// # Arguments
+/// * `x` - The raw floating-point value.
+///
+/// # Returns
+/// * `Result<u8, &'static str>` - The converted value or an error if the value is invalid.
+fn try_f64_to_i64(x: f64) -> Result<i64, &'static str> {
+    if !x.is_finite() {
+        return Err("value is NaN or infinite");
+    }
+
+    let y = x.round(); // ties-to-even (banker's rounding), just in case...
+
+    Ok(y as i64)
 }

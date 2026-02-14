@@ -163,6 +163,9 @@ pub struct DeviceVariableInfo {
     pub unit: Option<String>,
     /// Localized names for the variable.
     pub name: HashMap<String, String>,
+    /// Enumeration values for the variable, if any.
+    #[serde(rename = "enum")]
+    pub enumeration: Option<HashMap<String, String>>,
 }
 
 /// Result of a device variables query.

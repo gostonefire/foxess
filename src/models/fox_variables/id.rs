@@ -20,7 +20,9 @@ use core::str::FromStr;
 macro_rules! define_fox_variables {
     (
         $(
-            [$variant:ident, $key:literal, $doc:literal]
+            [$variant:ident, $key:literal, $doc:literal $(;
+                values: { $( $val:literal => $val_doc:literal ),+ $(,)? }
+            )?]
         ),+ $(,)?
     ) => {
         /// An enumeration representing the available real-time variables from FoxESS cloud.
@@ -29,6 +31,14 @@ macro_rules! define_fox_variables {
         pub enum FoxVariables {
             $(
                 #[doc = $doc]
+                 $(
+                    #[doc = ""]
+                    #[doc = "Possible values:"]
+                    $(
+                        #[doc = concat!("- `", $val, "`: ", $val_doc)]
+                    )+
+                )?
+
                 $variant,
             )+
         }
@@ -199,7 +209,7 @@ define_fox_variables! {
     [ResidualEnergy, "ResidualEnergy", "Battery Residual Energy, unit: 0.01kWh"],
     [RFreq, "RFreq", "RFreq, unit: Hz"],
     [RPower, "RPower", "RPower, unit: kW"],
-    [RunningState, "runningState", "Running State"],
+    [RunningState, "runningState", "Running State"; values: { "160" => "self-test", "161" => "waiting", "162" => "checking", "163" => "on-grid", "164" => "off-grid", "165" => "fault", "166" => "permanent-fault", "167" => "standby", "168" => "upgrading", "169" => "fct", "170" => "illegal" }],
     [RVolt, "RVolt", "RVolt, unit: V"],
     [SCurrent, "SCurrent", "SCurrent, unit: A"],
     [SFreq, "SFreq", "SFreq, unit: Hz"],
