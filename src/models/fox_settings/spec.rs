@@ -1,3 +1,6 @@
+//! This module hosts the [SettingSpec] trait that can be implemented for marker structs to be used together with typed get functions.
+//!
+
 use crate::{FoxError, FoxSettings};
 
 /// A trait defining the specification for a FoxESS setting.

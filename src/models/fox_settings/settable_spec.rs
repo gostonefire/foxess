@@ -1,3 +1,6 @@
+//! This module hosts the [SettableSettingSpec] trait that can be implemented for marker structs to be used together with typed set functions.
+//!
+
 use crate::fox_settings::SettingSpec;
 
 /// A trait for settings that can be updated on the FoxESS cloud.

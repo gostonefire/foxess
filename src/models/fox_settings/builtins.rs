@@ -1,9 +1,13 @@
+//! This module hosts builtin marker structs to be used together with typed get functions.
+//! These marker structs are used to implement the [SettingSpec] trait for the builtin settings.
+//!
+
 use crate::fox_settings::{SettableSettingSpec, SettingSpec};
 use crate::{FoxError, FoxSettings};
 
 /// Specification for the `ExportLimit` setting.
 pub struct ExportLimit;
-impl SettingSpec for crate::fox_settings::ExportLimit {
+impl SettingSpec for ExportLimit {
     type Value = f64;
     const SETTING: FoxSettings = FoxSettings::ExportLimit;
 
