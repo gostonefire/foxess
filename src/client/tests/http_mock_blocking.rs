@@ -84,7 +84,7 @@ fn blocking_get_settings() {
 #[test]
 fn blocking_get_setting_typed() {
     use crate::Fox;
-    use crate::models::fox_settings::MinSocOnGrid;
+    use crate::fox_settings::MinSocOnGrid;
 
     const API_KEY: &str = "TEST_API_KEY";
     const SN: &str = "TEST_SN";
@@ -131,7 +131,7 @@ fn blocking_get_setting_typed() {
 #[test]
 fn blocking_set_setting_typed() {
     use crate::Fox;
-    use crate::models::fox_settings::MinSocOnGrid;
+    use crate::fox_settings::MinSocOnGrid;
 
     const API_KEY: &str = "TEST_API_KEY";
     const SN: &str = "TEST_SN";

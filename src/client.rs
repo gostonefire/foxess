@@ -22,10 +22,11 @@ use std::collections::HashMap;
 use std::time::Duration;
 use chrono::{DateTime, Utc};
 use crate::client::helper::FoxHelper;
-use crate::error::FoxError;
-use crate::models::{VariablesDataHistory, VariablesData, FoxVariables, AvailableVariables, VariableSpec};
-use crate::models::fox_settings::{FoxSettings, SettableSettingSpec, SettingSpec};
-use crate::models::settings::{SettingsData, SettingsDataPoint};
+use crate::FoxError;
+use crate::{VariablesDataHistory, VariablesData, FoxVariables, AvailableVariables};
+use crate::fox_variables::VariableSpec;
+use crate::{FoxSettings,SettingsData, SettingsDataPoint};
+use crate::fox_settings::{SettableSettingSpec, SettingSpec};
 
 const DEFAULT_REQUEST_DOMAIN: &str = "https://www.foxesscloud.com";
 

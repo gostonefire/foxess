@@ -1,7 +1,7 @@
 //! This module hosts the [FoxVariables] enumeration mainly used when requesting several values from FoxESS cloud at once.
 //! 
 //! FoxESS Cloud currently supports many variables, and the foxess crate implements the currently available ones.
-//! More might be added over time, hence the [FoxVariables] enumeration is derived Non-Exhaustive.
+//! More might be added over time, hence the [FoxVariables] enumeration is derived non-exhaustive.
 //! 
 
 use core::str::FromStr;

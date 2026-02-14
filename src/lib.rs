@@ -104,22 +104,23 @@ pub use client::Fox;
 pub use error::FoxError;
 pub use models::FoxVariables;
 pub use models::FoxSettings;
-pub use models::{VariablesData, VariableDataSet, VariablesDataHistory, VariableDataPoint};
+pub use models::{AvailableVariables, VariablesData, VariableDataSet, VariablesDataHistory, VariableDataPoint};
 pub use models::{SettingsData, SettingsDataPoint};
 
 pub mod fox_settings {
     //! This module re-exports the fox_settings module from the models module.
     //!
 
-    pub use crate::models::fox_settings::{
+    pub use crate::models::fox_settings::builtins::{
         ExportLimit,
         MinSocOnGrid,
         MaxSoc,
         WorkMode,
         MaxSetChargeCurrent,
-        SettingSpec,
-        SettableSettingSpec,
     };
+    
+    pub use crate::models::fox_settings::spec::SettingSpec;
+    pub use crate::models::fox_settings::settable_spec::SettableSettingSpec;
 }
 
 pub mod fox_variables {

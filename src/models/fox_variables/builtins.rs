@@ -3,7 +3,7 @@
 //!
 
 use crate::{FoxError, FoxVariables};
-use crate::models::VariableSpec;
+use crate::fox_variables::VariableSpec;
 
 /// Specification for the `PvPower` variable.
 pub struct PvPower;
