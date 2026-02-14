@@ -22,7 +22,7 @@ impl SettingSpec for ExportLimit {
 
 /// Specification for the `MinSocOnGrid` setting.
 pub struct MinSocOnGrid;
-impl SettingSpec for crate::fox_settings::MinSocOnGrid {
+impl SettingSpec for MinSocOnGrid {
     type Value = u8;
     const SETTING: FoxSettings = FoxSettings::MinSocOnGrid;
 
@@ -37,7 +37,7 @@ impl SettingSpec for crate::fox_settings::MinSocOnGrid {
     }
 }
 
-impl SettableSettingSpec for crate::fox_settings::MinSocOnGrid {
+impl SettableSettingSpec for MinSocOnGrid {
     fn format(value: &Self::Value) -> String {
         value.clamp(&10, &100).to_string()
     }
@@ -45,7 +45,7 @@ impl SettableSettingSpec for crate::fox_settings::MinSocOnGrid {
 
 /// Specification for the `MaxSoc` setting.
 pub struct MaxSoc;
-impl SettingSpec for crate::fox_settings::MaxSoc {
+impl SettingSpec for MaxSoc {
     type Value = u8;
     const SETTING: FoxSettings = FoxSettings::MaxSoc;
 
@@ -60,7 +60,7 @@ impl SettingSpec for crate::fox_settings::MaxSoc {
     }
 }
 
-impl SettableSettingSpec for crate::fox_settings::MaxSoc {
+impl SettableSettingSpec for MaxSoc {
     fn format(value: &Self::Value) -> String {
         value.clamp(&10, &100).to_string()
     }
@@ -68,7 +68,7 @@ impl SettableSettingSpec for crate::fox_settings::MaxSoc {
 
 /// Specification for the `WorkMode` setting.
 pub struct WorkMode;
-impl SettingSpec for crate::fox_settings::WorkMode {
+impl SettingSpec for WorkMode {
     type Value = String;
     const SETTING: FoxSettings = FoxSettings::WorkMode;
 
@@ -79,7 +79,7 @@ impl SettingSpec for crate::fox_settings::WorkMode {
 
 /// Specification for the `MaxSetChargeCurrent` setting.
 pub struct MaxSetChargeCurrent;
-impl SettingSpec for crate::fox_settings::MaxSetChargeCurrent {
+impl SettingSpec for MaxSetChargeCurrent {
     type Value = f64;
     const SETTING: FoxSettings = FoxSettings::MaxSetChargeCurrent;
 

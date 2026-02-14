@@ -84,6 +84,63 @@
 //! }
 //! # });
 //! ```
+//! ### Adding own marker structs for variables and settings
+//! This is handy if an available variable or setting hasn't got a builtin marker struct yet
+//! for typed operations. Or if an available builtin marker struct hasn't sufficient guards for
+//! a settable setting.
+//!
+//! Be aware, though, that not all available variables and settings work with all inverters.
+//! Fox will throw an error if FoxESS Cloud doesn't support the requested variable or setting.
+//!
+//! ```rust, no_run
+//! use foxess::{Fox, FoxError, FoxVariables, FoxSettings};
+//! use foxess::fox_variables::VariableSpec;
+//! use foxess::fox_settings::{SettingSpec, SettableSettingSpec};
+//!
+//! # let rt = tokio::runtime::Runtime::new().unwrap();
+//! # rt.block_on(async {
+//! let api_key = "my_api_key";
+//! let sn = "my_inverter_sn";
+//!
+//! let fox = Fox::new(&api_key, &sn, 30).unwrap();
+//! let rf = fox.get_variable_typed::<RFreq>().await.unwrap();
+//! println!("Current R frequency state: {}", rf);
+//!
+//! let apl = fox.get_setting_typed::<MaxSetDischargeCurrent>().await.unwrap();
+//! println!("Current max discharge current: {} A", apl);
+//!
+//! let _ = fox.set_setting_typed::<MaxSetDischargeCurrent>(20.0).await.unwrap();
+//!
+//! # });
+//!
+//! struct RFreq;
+//! impl VariableSpec for RFreq {
+//!     type Value = String;
+//!
+//!     const VARIABLE: FoxVariables = FoxVariables::RFreq;
+//!
+//!     fn into(raw: f64) -> Result<Self::Value, FoxError> {
+//!         Ok(format!("{} Hz", raw))
+//!     }
+//! }
+//!
+//! struct MaxSetDischargeCurrent;
+//! impl SettingSpec for MaxSetDischargeCurrent {
+//!     type Value = f64;
+//!
+//!     const SETTING: FoxSettings = FoxSettings::MaxSetDischargeCurrent;
+//!
+//!     fn parse(raw: String) -> Result<Self::Value, FoxError> {
+//!         Ok(raw.parse::<f64>().unwrap())
+//!     }
+//! }
+//!
+//! impl SettableSettingSpec for MaxSetDischargeCurrent {
+//!     fn format(value: &Self::Value) -> String {
+//!         value.clamp(3.0, 26.0).to_string()
+//!     }
+//! }
+//! ```
 //!
 //! [MIT license]: https://github.com/gostonefire/foxess/blob/main/LICENSE
 //! [FoxESS Cloud APIs]: https://www.foxesscloud.com/public/i18n/en/OpenApiDocument.html
