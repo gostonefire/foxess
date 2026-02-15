@@ -1,7 +1,5 @@
-#![cfg_attr(docsrs, feature(doc_cfg))]
 #![warn(missing_docs)]
 //! # Foxess API client library
-//!
 //! The foxess crate implements a subset of available [FoxESS Cloud APIs].
 //!
 //! Its purpose is mainly focused on APIs that help in executing automatic scheduling of battery charging and battery discharging (self-use) given external data such as tariffs from e.g.:
@@ -10,9 +8,18 @@
 //! * Weather cloud forecast data and sun incidence calculations to estimate PV power production
 //! * Etc. depending on level of ambition/precision in estimates
 //!
-//! The APIs are tested for a Fox H3 model SK-HWR-12, and although the FoxESS Cloud APIs are general, settings and variables are not guaranteed to be fully supported by all inverters.
+//! The APIs are tested for a Fox H3 model SK-HWR-12, and although the FoxESS Cloud APIs are general, 
+//! settings and variables are not guaranteed to be fully supported by all inverters.
+//! 
 //! ## License
 //! This library comes with a standard [MIT license]
+//!
+//! ## Features
+//! * `async` (default) - Enables async requests using [reqwest](https://crates.io/crates/reqwest)
+//! * `blocking` - Enables blocking requests using [reqwest](https://crates.io/crates/reqwest)
+//! 
+//! `async` and `blocking` features are mutually exclusive, and since `async` is default, one must declare
+//! default-features = false when enabling `blocking`
 //!
 //! ## Usage Overview
 //! Note down your inverter serial number, can be found from within the FoxCloud2.0 app or the [FoxESS Cloud V2 site] web site.
@@ -31,6 +38,7 @@
 //! // Blocking
 //! foxess = { version = “0.x.y”, default-features = false, features = [“blocking”] }
 //! ```
+//! 
 //! ## Examples
 //! ### Non-blocking request for battery State of Charge
 //! ```rust,no_run
