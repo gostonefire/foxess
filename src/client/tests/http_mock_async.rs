@@ -369,6 +369,9 @@ async fn async_get_variables_history() {
     let series = res.get(FoxVariables::PvPower).unwrap();
     assert_eq!(series.len(), 2);
     assert_eq!(series[0].data, 42.0);
+    assert_eq!(series[0].date_time, Utc.with_ymd_and_hms(2025, 12, 2, 23, 8, 51).unwrap());
+    assert_eq!(series[1].data, 43.0);
+    assert_eq!(series[1].date_time, Utc.with_ymd_and_hms(2025, 12, 2, 23, 9, 51).unwrap());
 }
 
 /// Verifies that `set_battery_charging_time_schedule` correctly configures a charging schedule.

@@ -483,20 +483,22 @@ fn transform_history_data(input: Vec<DeviceHistoryData>) -> Result<VariablesData
     };
 
     for set in &first.data_set {
-        let utc = cet_to_utc(&set.data[0].time)?;
-
         // Only accept variables that are part of FoxParameter.
         let Ok(p) = FoxVariables::from_str(set.variable.as_str()) else {
             continue;
         };
 
         // History payload uses f64 values; store as-is.
-        set.data.iter().for_each(
-            |d| series
+        for d in set.data.iter() {
+            let utc = cet_to_utc(&d.time)?;
+            series
                 .entry(p)
                 .or_insert_with(Vec::new)
-                .push(VariableDataSet { date_time: utc, data: d.value })
-        );
+                .push(VariableDataSet {
+                    date_time: utc,
+                    data: d.value,
+                });
+        }
     }
 
     Ok(VariablesDataHistory {
