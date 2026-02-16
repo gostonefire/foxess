@@ -22,7 +22,7 @@
 //! `async` and `blocking` features are mutually exclusive, and since `async` is default, one must declare
 //! default-features = false when enabling `blocking`
 //! 
-//! ### Blocking mode (alternative)
+//! ## Blocking mode (alternative)
 //! This crate defaults to the `async` feature, and the documentation on docs.rs is generated for
 //! the async API.
 //!

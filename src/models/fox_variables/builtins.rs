@@ -72,6 +72,8 @@ impl VariableSpec for BatTemperature {
 /// When retrieving the value for `RunningState` from the inverter, the value is an integer number.
 /// To get what that number actually means, use the [Fox::get_available_variables](crate::Fox::get_available_variables)
 /// function and look up the value in the attached enumeration field for `RunningState`.
+/// Also, documentation (valid up to when created) will show the valid values, 
+/// see [FoxVariables::RunningState](FoxVariables::RunningState) for more information.
 pub struct RunningState;
 impl VariableSpec for RunningState {
     type Value = i64;

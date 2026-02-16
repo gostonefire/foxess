@@ -20,6 +20,17 @@ This library comes with a standard [MIT license]
 `async` and `blocking` features are mutually exclusive, and since `async` is default, one must declare
 default-features = false when enabling `blocking`
 
+## Blocking mode (alternative)
+This crate defaults to the `async` feature, and the documentation on docs.rs is generated for the async API.
+
+If you prefer a blocking API, disable default features and enable `blocking` instead:
+```toml
+[dependencies]
+foxess = { version = "0.x.y", default-features = false, features = ["blocking"] }
+```
+
+The blocking API uses the same `Fox` type name, but methods are synchronous (no `.await`).
+
 ## Usage Overview
 Note down your inverter serial number, can be found from within the FoxCloud2.0 app or the [FoxESS Cloud V2 site] web site.
 

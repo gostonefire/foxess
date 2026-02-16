@@ -186,7 +186,7 @@ impl Fox {
     ///
     /// # Returns
     /// * `Result<String, FoxError>` - The raw string value of the setting.
-    async fn get_setting(&self, setting: FoxSettings) -> Result<String, FoxError> {
+    pub async fn get_setting(&self, setting: FoxSettings) -> Result<String, FoxError> {
         let (req_json, path) = self.fox_helper.pre_get_setting(setting)?;
 
         let json = self.post_request(&path, req_json).await?;
@@ -513,7 +513,7 @@ impl Fox {
     ///
     /// # Returns
     /// * `Result<String, FoxError>` - The raw string value of the setting.
-    fn get_setting(&self, setting: FoxSettings) -> Result<String, FoxError> {
+    pub fn get_setting(&self, setting: FoxSettings) -> Result<String, FoxError> {
         let (req_json, path) = self.fox_helper.pre_get_setting(setting)?;
 
         let json = self.post_request(&path, req_json)?;
