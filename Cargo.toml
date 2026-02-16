@@ -5,8 +5,8 @@ description = "Rust library for communication with FoxESS Cloud"
 homepage = "https://github.com/gostonefire/foxess"
 repository = "https://github.com/gostonefire/foxess"
 documentation = "https://docs.rs/foxess"
-keywords = []
-categories = []
+keywords = ["foxess", "photovoltaic", "inverter", "battery", "home-automation"]
+categories = ["api-bindings", "web-programming::http-client", "network-programming", "asynchronous"]
 readme = "README.md"
 license-file = "LICENSE"
 edition = "2024"
@@ -29,3 +29,6 @@ md-5 = "0.10.6"
 tokio = { version = "1.49", features = ["macros", "rt"] }
 httpmock = "0.8"
 
+[package.metadata.docs.rs]
+features = ["async"]
+rustdoc-args = ["--cfg", "docsrs"]

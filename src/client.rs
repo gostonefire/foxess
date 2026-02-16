@@ -40,6 +40,7 @@ fn default_now_millis() -> i64 {
 /// and manage settings for a FoxESS inverter. It handles authentication,
 /// request signing, and data parsing.
 #[cfg(feature = "async")]
+#[cfg_attr(docsrs, doc(cfg(feature = "async")))]
 pub struct Fox {
     client: reqwest::Client,
     fox_helper: FoxHelper,
@@ -49,12 +50,14 @@ pub struct Fox {
 ///
 /// This version of the `Fox` struct uses a blocking HTTP client.
 #[cfg(feature = "blocking")]
+#[cfg_attr(docsrs, doc(cfg(feature = "blocking")))]
 pub struct Fox {
     client: reqwest::blocking::Client,
     fox_helper: FoxHelper,
 }
 
 #[cfg(feature = "async")]
+#[cfg_attr(docsrs, doc(cfg(feature = "async")))]
 impl Fox {
     /// Creates a new asynchronous instance of the `Fox` client.
     ///
@@ -381,6 +384,7 @@ impl Fox {
 }
 
 #[cfg(feature = "blocking")]
+#[cfg_attr(docsrs, doc(cfg(feature = "blocking")))]
 impl Fox {
     /// Creates a new blocking instance of the `Fox` client.
     ///

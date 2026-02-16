@@ -1,4 +1,5 @@
 #![warn(missing_docs)]
+#![cfg_attr(docsrs, feature(doc_cfg))]
 //! # Foxess API client library
 //! The foxess crate implements a subset of available [FoxESS Cloud APIs].
 //!
@@ -20,7 +21,19 @@
 //! 
 //! `async` and `blocking` features are mutually exclusive, and since `async` is default, one must declare
 //! default-features = false when enabling `blocking`
+//! 
+//! ### Blocking mode (alternative)
+//! This crate defaults to the `async` feature, and the documentation on docs.rs is generated for
+//! the async API.
 //!
+//! If you prefer a blocking API, disable default features and enable `blocking` instead:
+//! ```toml
+//! [dependencies]
+//! foxess = { version = "0.x.y", default-features = false, features = ["blocking"] }
+//! ```
+//!
+//! The blocking API uses the same `Fox` type name, but methods are synchronous (no `.await`).
+//! 
 //! ## Usage Overview
 //! Note down your inverter serial number, can be found from within the FoxCloud2.0 app or the [FoxESS Cloud V2 site] web site.
 //!
@@ -29,14 +42,14 @@
 //! Decide whether to use the blocking or non-blocking feature in cargo.toml dependencies
 //! ```toml
 //! [dependencies]
-//! // Non-blocking (async)
-//! foxess = “0.x.y”
+//! # Non-blocking (async)
+//! foxess = "0.x.y"
 //!
-//! // Non-blocking (async) if you want clarity
-//! foxess = { version = “0.x.y”, features = ["async"] }
+//! # Non-blocking (async) if you want clarity
+//! foxess = { version = "0.x.y", features = ["async"] }
 //!
-//! // Blocking
-//! foxess = { version = “0.x.y”, default-features = false, features = [“blocking”] }
+//! # Blocking
+//! foxess = { version = "0.x.y", default-features = false, features = ["blocking"] }
 //! ```
 //! 
 //! ## Examples

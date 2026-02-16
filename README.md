@@ -28,14 +28,14 @@ Get an API key, it can be retrieved from the [FoxESS Cloud V1 site] under User P
 Decide whether to use the blocking or non-blocking feature in cargo.toml dependencies
 ```
 [dependencies]
-// Non-blocking (async)
-foxess = “0.x.y”
+# Non-blocking (async)
+foxess = "0.x.y"
 
-// Non-blocking (async) if you want clarity
-foxess = { version = “0.x.y”, features = ["async"] }
+# Non-blocking (async) if you want clarity
+foxess = { version = "0.x.y", features = ["async"] }
 
-// Blocking
-foxess = { version = “0.x.y”, default-features = false, features = [“blocking”] }
+# Blocking
+foxess = { version = "0.x.y", default-features = false, features = ["blocking"] }
 ```
 
 [MIT license]: https://github.com/gostonefire/foxess/blob/main/LICENSE
