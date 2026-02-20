@@ -17,6 +17,7 @@ use crate::models::FoxSettings;
 /// let setting = SettingsDataPoint("42.5".to_string());
 /// println!("Value: {}", setting.0);
 /// ```
+#[derive(Debug)]
 pub struct SettingsDataPoint (pub String);
 
 
@@ -51,6 +52,7 @@ pub struct SettingsDataPoint (pub String);
 ///     println!("Min SoC: {}", v);
 /// }
 /// ```
+#[derive(Debug)]
 pub struct SettingsData {
     pub(crate) data_points: HashMap<FoxSettings, SettingsDataPoint>,
 }

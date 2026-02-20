@@ -562,6 +562,213 @@ fn blocking_get_available_variables() {
     assert!(res.variables.iter().filter_map(|v| v.enumeration.as_ref()).any(|e| e.contains_key("163")));
 }
 
+/// Verifies that scheduler time segments are correctly parsed from the API response, including enumeration values.
+///
+#[cfg(feature = "blocking")]
+#[test]
+fn blocking_get_scheduler_time_segments() {
+    use crate::Fox;
+    use crate::FoxWorkModes;
+
+    const TS: i64 = 1_700_000_000_000;
+
+    fn fixed_now() -> i64 { TS }
+
+    let server = MockServer::start();
+
+    let _m = server.mock(|when, then| {
+        when.method(POST);
+        then.status(200)
+            .header("Content-Type", "application/json")
+            .body(r#"{
+                "errno": 0,
+                "msg": "Operation successful",
+                "result": {
+                    "enable": 1,
+                    "maxGroupCount": 24,
+                    "groups": [
+                        {
+                            "endHour": 8,
+                            "workMode": "SelfUse",
+                            "startHour": 0,
+                            "extraParam": {
+                                "fdPwr": 100.0,
+                                "minSocOnGrid": 10.0,
+                                "fdSoc": 10.0,
+                                "maxSoc": 100.0
+                            },
+                            "startMinute": 0,
+                            "endMinute": 29
+                        },
+                        {
+                            "endHour": 8,
+                            "workMode": "ForceCharge",
+                            "startHour": 8,
+                            "extraParam": {
+                                "fdPwr": 12000.0,
+                                "minSocOnGrid": 10.0,
+                                "fdSoc": 20.0,
+                                "maxSoc": 100.0
+                            },
+                            "startMinute": 30,
+                            "endMinute": 59
+                        },
+                        {
+                            "endHour": 9,
+                            "workMode": "SelfUse",
+                            "startHour": 9,
+                            "extraParam": {
+                                "fdPwr": 100.0,
+                                "minSocOnGrid": 10.0,
+                                "fdSoc": 10.0,
+                                "maxSoc": 100.0
+                            },
+                            "startMinute": 0,
+                            "endMinute": 29
+                        },
+                        {
+                            "endHour": 9,
+                            "workMode": "ForceCharge",
+                            "startHour": 9,
+                            "extraParam": {
+                                "fdPwr": 12000.0,
+                                "minSocOnGrid": 10.0,
+                                "fdSoc": 30.0,
+                                "maxSoc": 100.0
+                            },
+                            "startMinute": 30,
+                            "endMinute": 59
+                        },
+                        {
+                            "endHour": 10,
+                            "workMode": "SelfUse",
+                            "startHour": 10,
+                            "extraParam": {
+                                "fdPwr": 0.0,
+                                "minSocOnGrid": 10.0,
+                                "fdSoc": 10.0,
+                                "maxSoc": 100.0
+                            },
+                            "startMinute": 0,
+                            "endMinute": 59
+                        },
+                        {
+                            "endHour": 11,
+                            "workMode": "Backup",
+                            "startHour": 11,
+                            "extraParam": {
+                                "fdPwr": 0.0,
+                                "minSocOnGrid": 30.0,
+                                "fdSoc": 10.0,
+                                "maxSoc": 100.0
+                            },
+                            "startMinute": 0,
+                            "endMinute": 59
+                        },
+                        {
+                            "endHour": 23,
+                            "workMode": "SelfUse",
+                            "startHour": 12,
+                            "extraParam": {
+                                "fdPwr": 0.0,
+                                "minSocOnGrid": 10.0,
+                                "fdSoc": 10.0,
+                                "maxSoc": 100.0
+                            },
+                            "startMinute": 0,
+                            "endMinute": 59
+                        }
+                    ],
+                    "properties": {
+                        "startminute": {
+                            "unit": "",
+                            "precision": 1.0,
+                            "range": {
+                                "min": 0.0,
+                                "max": 59.0
+                            }
+                        },
+                        "fdpwr": {
+                            "unit": "W",
+                            "precision": 1.0,
+                            "range": {
+                                "min": 0.0,
+                                "max": 12000.0
+                            }
+                        },
+                        "endhour": {
+                            "unit": "",
+                            "precision": 1.0,
+                            "range": {
+                                "min": 0.0,
+                                "max": 23.0
+                            }
+                        },
+                        "endminute": {
+                            "unit": "",
+                            "precision": 1.0,
+                            "range": {
+                                "min": 0.0,
+                                "max": 59.0
+                            }
+                        },
+                        "fdsoc": {
+                            "unit": "%",
+                            "precision": 1.0,
+                            "range": {
+                                "min": 10.0,
+                                "max": 100.0
+                            }
+                        },
+                        "starthour": {
+                            "unit": "",
+                            "precision": 1.0,
+                            "range": {
+                                "min": 0.0,
+                                "max": 23.0
+                            }
+                        },
+                        "workmode": {
+                            "enumList": [
+                                "ForceDischarge",
+                                "PeakShaving",
+                                "Feedin",
+                                "Backup",
+                                "SelfUse",
+                                "ForceCharge"
+                            ],
+                            "unit": "",
+                            "precision": 1.0
+                        },
+                        "minsocongrid": {
+                            "unit": "%",
+                            "precision": 1.0,
+                            "range": {
+                                "min": 10.0,
+                                "max": 100.0
+                            }
+                        },
+                        "maxsoc": {
+                            "unit": "%",
+                            "precision": 1.0,
+                            "range": {
+                                "min": 10.0,
+                                "max": 100.0
+                            }
+                        }
+                    }
+                }
+            }"#);
+    });
+
+    let fox = Fox::new_with_base_url_and_clock("TEST_API_KEY", "TEST_SN", 5, &server.base_url(), fixed_now).unwrap();
+    let res = fox.get_scheduler_time_segments().unwrap();
+
+    assert_eq!(res.groups.len(), 7);
+    assert_eq!(res.properties.work_mode.enum_list.len(), 6);
+    assert_eq!(res.properties.work_mode.enum_list.contains(&FoxWorkModes::Unknown), false);
+}
+
 /// Verifies that non-zero `errno` values in the API response are correctly mapped to `FoxError`.
 #[cfg(feature = "blocking")]
 #[test]

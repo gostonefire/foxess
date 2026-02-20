@@ -27,6 +27,7 @@ use crate::{VariablesDataHistory, VariablesData, FoxVariables, AvailableVariable
 use crate::fox_variables::VariableSpec;
 use crate::{FoxSettings,SettingsData, SettingsDataPoint};
 use crate::fox_settings::{SettableSettingSpec, SettingSpec};
+use crate::models::scheduler::TimeSeriesData;
 
 const DEFAULT_REQUEST_DOMAIN: &str = "https://www.foxesscloud.com";
 
@@ -312,6 +313,20 @@ impl Fox {
         self.set_battery_charging_time_schedule(
             false, Default::default(), Default::default()
         ).await
+    }
+
+    /// Gets inverter scheduler time segments.
+    ///
+    /// For more information, see the [FoxESS API documentation](https://www.foxesscloud.com/public/i18n/en/OpenApiDocument.html#get20the20time20segment20information0a3ca20id3dget20the20time20segment20information14983e203ca3e)
+    ///
+    /// # Returns
+    /// * `Result<String, FoxError>` - A string containing the scheduler time segments.
+    pub async fn get_scheduler_time_segments(&self) -> Result<TimeSeriesData, FoxError> {
+        let (req_json, path) = self.fox_helper.pre_get_scheduler_time_segments()?;
+
+        let json = self.post_request(path, req_json).await?;
+
+        self.fox_helper.post_get_scheduler_time_segments(&json)
     }
 
     /// Gets a list of available variables from the FoxESS Cloud.
@@ -639,6 +654,20 @@ impl Fox {
         self.set_battery_charging_time_schedule(
             false, Default::default(), Default::default()
         )
+    }
+
+    /// Gets inverter scheduler time segments.
+    ///
+    /// For more information, see the [FoxESS API documentation](https://www.foxesscloud.com/public/i18n/en/OpenApiDocument.html#get20the20time20segment20information0a3ca20id3dget20the20time20segment20information14983e203ca3e)
+    ///
+    /// # Returns
+    /// * `Result<String, FoxError>` - A string containing the scheduler time segments.
+    pub fn get_scheduler_time_segments(&self) -> Result<TimeSeriesData, FoxError> {
+        let (req_json, path) = self.fox_helper.pre_get_scheduler_time_segments()?;
+
+        let json = self.post_request(path, req_json)?;
+        println!("{}", json);
+        self.fox_helper.post_get_scheduler_time_segments(&json)
     }
 
     /// Gets a list of available variables from the FoxESS Cloud.

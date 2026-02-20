@@ -19,11 +19,12 @@ use chrono::{DateTime, Local, NaiveTime, TimeDelta, Timelike, Utc};
 use md5::{Digest, Md5};
 use reqwest::header::{HeaderMap, HeaderName, HeaderValue};
 use serde::{Deserialize, Serialize};
-use crate::{FoxError, FoxSettings, FoxVariables};
+use crate::{FoxError, FoxSettings, FoxVariables, FoxWorkModes};
 use crate::fox_settings::SettableSettingSpec;
 use crate::models::{VariablesDataHistory, VariablesData, VariableDataSet, VariableDataPoint, VariableInfo, AvailableVariables};
 use crate::models::dto::{ChargingTime, ChargingTimeSchedule, DeviceHistoryData, DeviceHistoryResult, DeviceRealTimeResult, DeviceSettingsResult, DeviceVariablesResult, RequestDeviceHistoryData, RequestDeviceRealTimeData, RequestSettingsData, SetSetting};
-
+use crate::models::dto_scheduler::SchedulerTimeSeriesResult;
+use crate::models::scheduler::{ExtraParam, Group, MetaData, Properties, Range, TimeSeriesData, WorkMode};
 
 pub(crate) struct FoxHelper {
     api_key: String,
@@ -228,6 +229,144 @@ impl FoxHelper {
         let req_json = serde_json::to_string(&schedule)?;
 
         Ok((req_json, path))
+    }
+
+    /// Pre-network request: Gets inverter scheduler time segments.
+    ///
+    /// For more information, see the [FoxESS API documentation](https://www.foxesscloud.com/public/i18n/en/OpenApiDocument.html#get20the20time20segment20information0a3ca20id3dget20the20time20segment20information14983e203ca3e)
+    ///
+    /// # Returns
+    /// * `Result<String, FoxError>` - A string containing the scheduler time segments.
+    pub(crate) fn pre_get_scheduler_time_segments(&self) -> Result<(String, &'static str), FoxError> {
+        let path = "/op/v3/device/scheduler/get";
+
+        #[derive(Serialize)]
+        struct RequestSchedulerTimeSegments<'a> {
+            #[serde(rename = "deviceSN")]
+            device_sn: &'a str,
+        }
+        
+        let req = RequestSchedulerTimeSegments { device_sn: &self.sn };
+        
+        Ok((serde_json::to_string(&req)?, path))
+    }
+
+    /// Post-network request: Gets inverter scheduler time segments.
+    ///
+    /// For more information, see the [FoxESS API documentation](https://www.foxesscloud.com/public/i18n/en/OpenApiDocument.html#get20the20time20segment20information0a3ca20id3dget20the20time20segment20information14983e203ca3e)
+    ///
+    /// # Arguments
+    /// * `json` - The JSON response string from the API.
+    /// 
+    /// # Returns
+    /// * `Result<String, FoxError>` - A string containing the scheduler time segments.
+    pub(crate) fn post_get_scheduler_time_segments(&self, json: &str) -> Result<TimeSeriesData, FoxError> {
+
+        let ts = serde_json::from_str::<SchedulerTimeSeriesResult>(json)?;
+
+        let enum_list = ts.result.properties.work_mode.enum_list
+            .iter()
+            .map(|mode| FoxWorkModes::from_str(mode).unwrap_or(FoxWorkModes::Unknown))
+            .collect::<Vec<_>>();
+
+        let groups: Vec<Group> = ts.result.groups.into_iter().map(|g| {
+            Group {
+                end_hour: g.end_hour,
+                work_mode: FoxWorkModes::from_str(&g.work_mode).unwrap_or(FoxWorkModes::Unknown),
+                start_hour: g.start_hour,
+                extra_param: g.extra_param.map(|ep| ExtraParam {
+                    fd_pwr: ep.fd_pwr,
+                    min_soc_on_grid: ep.min_soc_on_grid,
+                    fd_soc: ep.fd_soc,
+                    max_soc: ep.max_soc,
+                    import_limit: ep.import_limit,
+                    export_limit: ep.export_limit,
+                    pv_limit: ep.pv_limit,
+                    reactive_power: ep.reactive_power,
+                }) ,
+                start_minute: g.start_minute,
+                end_minute: g.end_minute,
+            }
+        }).collect();
+        
+        let result = TimeSeriesData {
+            enable: ts.result.enable,
+            max_group_count: ts.result.max_group_count,
+            groups,
+            properties: Properties {
+                start_minute: MetaData {
+                    unit: ts.result.properties.start_minute.unit,
+                    precision: ts.result.properties.start_minute.precision,
+                    range: Range {
+                        min: ts.result.properties.start_minute.range.min,
+                        max: ts.result.properties.start_minute.range.max,
+                    },
+                },
+                fd_pwr: MetaData {
+                    unit: ts.result.properties.fd_pwr.unit,
+                    precision: ts.result.properties.fd_pwr.precision,
+                    range: Range {
+                        min: ts.result.properties.fd_pwr.range.min,
+                        max: ts.result.properties.fd_pwr.range.max,
+                    },
+                },
+                end_hour: MetaData {
+                    unit: ts.result.properties.end_hour.unit,
+                    precision: ts.result.properties.end_hour.precision,
+                    range: Range {
+                        min: ts.result.properties.end_hour.range.min,
+                        max: ts.result.properties.end_hour.range.max,
+                    },
+                },
+                end_minute: MetaData {
+                    unit: ts.result.properties.end_minute.unit,
+                    precision: ts.result.properties.end_minute.precision,
+                    range: Range {
+                        min: ts.result.properties.end_minute.range.min,
+                        max: ts.result.properties.end_minute.range.max,
+                    },
+                },
+                fd_soc: MetaData {
+                    unit: ts.result.properties.fd_soc.unit,
+                    precision: ts.result.properties.fd_soc.precision,
+                    range: Range {
+                        min: ts.result.properties.fd_soc.range.min,
+                        max: ts.result.properties.fd_soc.range.max,
+                    },
+                },
+                start_hour: MetaData {
+                    unit: ts.result.properties.start_hour.unit,
+                    precision: ts.result.properties.start_hour.precision,
+                    range: Range {
+                        min: ts.result.properties.start_hour.range.min,
+                        max: ts.result.properties.start_hour.range.max,
+                    },
+                },
+                work_mode: WorkMode {
+                    enum_list,
+                    unit: ts.result.properties.work_mode.unit,
+                    precision: ts.result.properties.work_mode.precision,
+                },
+                min_soc_on_grid: MetaData {
+                    unit: ts.result.properties.min_soc_on_grid.unit,
+                    precision: ts.result.properties.min_soc_on_grid.precision,
+                    range: Range {
+                        min: ts.result.properties.min_soc_on_grid.range.min,
+                        max: ts.result.properties.min_soc_on_grid.range.max,
+                    },
+                },
+                max_soc: MetaData {
+                    unit: ts.result.properties.max_soc.unit,
+                    precision: ts.result.properties.max_soc.precision,
+                    range: Range {
+                        min: ts.result.properties.max_soc.range.min,
+                        max: ts.result.properties.max_soc.range.max,
+                    },
+                },
+            },
+        };
+
+        Ok(result)
     }
 
     /// Pre-network request: Prepare the request for available variables.

@@ -17,6 +17,7 @@ use crate::models::FoxVariables;
 /// let data_point = VariableDataPoint(42.5);
 /// println!("Value: {}", data_point.0);
 /// ```
+#[derive(Debug)]
 pub struct VariableDataPoint (pub f64);
 
 
@@ -51,6 +52,7 @@ pub struct VariableDataPoint (pub f64);
 ///     println!("Generation Power: {}W", v);
 /// }
 /// ```
+#[derive(Debug)]
 pub struct VariablesData {
     pub(crate) data_points: HashMap<FoxVariables, VariableDataPoint>,
 }
@@ -110,6 +112,7 @@ impl VariablesData {
 }
 
 /// Information about a variable, including its key, descriptive name, optional unit, and optional enumeration values.
+#[derive(Debug)]
 pub struct VariableInfo {
     /// The unique identifier or key of the variable.
     pub variable: String,
@@ -122,6 +125,7 @@ pub struct VariableInfo {
 }
 
 /// A collection of available variables.
+#[derive(Debug)]
 pub struct AvailableVariables {
     /// A list of `VariableInfo` objects representing the variables that are available.
     pub variables: Vec<VariableInfo>,

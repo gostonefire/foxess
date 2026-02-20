@@ -3,7 +3,7 @@ use std::{env, fs};
 use std::path::PathBuf;
 use thiserror::Error;
 use foxess::Fox;
-use foxess::fox_variables::RunningState;
+// use foxess::fox_variables::RunningState;
 
 #[cfg(feature = "async")]
 #[tokio::test]
@@ -28,6 +28,14 @@ async fn it_works() {
         panic!("Failed to create Fox instance: {e}");
     });
 
+    let time_segments = fox.get_scheduler_time_segments().await.unwrap_or_else(|e| {
+        panic!("Failed to get scheduler time segments: {e}");
+    });
+    
+    println!("Time segments:\n{:?}", time_segments);
+    
+    /*
+    
     let mut variables = fox.get_available_variables().await.unwrap_or_else(|e| {
         panic!("Failed to get available variables: {e}");
     });
@@ -62,6 +70,8 @@ async fn it_works() {
         panic!("Failed to get device variables: {e}");
     });
     println!("Running state: {}", running_state);
+    
+     */
 }
 
 #[cfg(feature = "blocking")]
@@ -87,6 +97,13 @@ fn it_works() {
         panic!("Failed to create Fox instance: {e}");
     });
 
+    let time_segments = fox.get_scheduler_time_segments().unwrap_or_else(|e| {
+        panic!("Failed to get scheduler time segments: {e}");
+    });
+
+    println!("Time segments:\n{:?}", time_segments);
+
+    /*
     let mut variables = fox.get_available_variables().unwrap_or_else(|e| {
         panic!("Failed to get available variables: {e}");
     });
@@ -121,6 +138,8 @@ fn it_works() {
         panic!("Failed to get device variables: {e}");
     });
     println!("Running state: {}", running_state);
+
+     */
 }
 
 /// Reads a credential from the file system.

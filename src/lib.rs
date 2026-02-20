@@ -182,8 +182,10 @@ pub use client::Fox;
 pub use error::FoxError;
 pub use models::FoxVariables;
 pub use models::FoxSettings;
+pub use models::FoxWorkModes;
 pub use models::{AvailableVariables, VariablesData, VariableDataSet, VariablesDataHistory, VariableDataPoint};
 pub use models::{SettingsData, SettingsDataPoint};
+pub use models::{TimeSeriesData, Group, ExtraParam, Properties, MetaData, Range, WorkMode};
 
 pub mod fox_settings {
     //! This module re-exports the fox_settings module from the models module.

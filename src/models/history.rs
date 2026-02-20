@@ -33,6 +33,7 @@ use crate::models::FoxVariables;
 ///
 /// println!("Timestamp: {}, Data: {}", dataset.date_time, dataset.data);
 /// ```
+#[derive(Debug)]
 pub struct VariableDataSet<T> {
     /// The UTC timestamp indicating the date and time when the data was recorded or is relevant.
     pub date_time: DateTime<Utc>,
@@ -57,6 +58,7 @@ pub struct VariableDataSet<T> {
 ///
 /// The `series` field is marked with `pub(crate)`, meaning it is publicly accessible
 /// within the same crate but is not exposed publicly outside of it.
+#[derive(Debug)]
 pub struct VariablesDataHistory {
     /// A `HashMap` where:
     /// - The key is of type `FoxVariables`, representing the variable being tracked.
