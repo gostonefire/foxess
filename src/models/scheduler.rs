@@ -62,11 +62,14 @@ pub struct Properties {
 /// Additional parameters for specific work modes or settings.
 #[derive(Debug)]
 pub struct ExtraParam {
-    /// Feed-in power limit.
+    /// The FC/FDPwr defines the maximum charging or discharging power allowed when the system is in Force Charge/Force Discharge Mode.
+    /// The maximum AC input power the system can draw from the grid to charge the battery in Force Charge.
+    /// The maximum AC output power the system is allowed to deliver during Forced Discharge.
     pub fd_pwr: Option<f64>,
     /// Minimum State of Charge (SoC) when on grid.
     pub min_soc_on_grid: Option<f64>,
-    /// Feed-in State of Charge (SoC) limit.
+    /// The FC/FDSoC is the SoC level set for the system when operating in Force Charge/Force Discharge Mode.
+    /// Once the battery reaches this SoC, the system will automatically stop charging or discharging.
     pub fd_soc: Option<f64>,
     /// Maximum State of Charge (SoC).
     pub max_soc: Option<f64>,
@@ -83,23 +86,23 @@ pub struct ExtraParam {
 /// A scheduled task group defining a work mode for a specific time window.
 #[derive(Debug)]
 pub struct Group {
-    /// End hour of the scheduled window.
-    pub end_hour: i64,
-    /// Work mode to be used during this time window.
-    pub work_mode: FoxWorkModes,
     /// Start hour of the scheduled window.
     pub start_hour: i64,
-    /// Additional parameters specific to this group.
-    pub extra_param: Option<ExtraParam>,
     /// Start minute of the scheduled window.
     pub start_minute: i64,
+    /// End hour of the scheduled window.
+    pub end_hour: i64,
     /// End minute of the scheduled window.
     pub end_minute: i64,
+    /// Work mode to be used during this time window.
+    pub work_mode: FoxWorkModes,
+    /// Additional parameters specific to this group.
+    pub extra_param: Option<ExtraParam>,
 }
 
-/// Information about a time-series based scheduler configuration.
+/// Information about a time-segments based scheduler configuration.
 #[derive(Debug)]
-pub struct TimeSeriesData {
+pub struct TimeSegmentsData {
     /// Whether the scheduler is enabled (1) or disabled (0).
     pub enable: i64,
     /// Maximum number of schedule groups allowed.
@@ -108,4 +111,13 @@ pub struct TimeSeriesData {
     pub groups: Vec<Group>,
     /// Metadata properties for the schedule.
     pub properties: Properties,
+}
+
+/// Data to set as time-segments for the scheduler
+pub struct TimeSegmentsDataRequest {
+    /// * 'false' - Parameters not provided in `extraParam` remain unchanged. This is the default value if not provided.
+    /// * 'true' - Parameters not provided in `extraParam` are restored to system defaults.
+    pub is_default: Option<bool>,
+    /// List of groups to schedule.
+    pub groups: Vec<Group>,
 }

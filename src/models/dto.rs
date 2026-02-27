@@ -175,6 +175,39 @@ pub struct DeviceVariablesResult {
     pub result: Vec<HashMap<String, DeviceVariableInfo>>,
 }
 
+/// Represents the Main Switch Status state in the API.
+#[derive(Deserialize)]
+pub struct MainSwitchStatus {
+    /// Whether the main switch is supported (true) or not (false)
+    pub support: bool,
+    /// Whether the main switch is enabled (true) or disabled (false).
+    pub enable: bool,
+}
+
+/// Result of a get main switch status query.
+#[derive(Deserialize)]
+pub struct MainSwitchStatusResult {
+    /// The main switch status.
+    pub result: MainSwitchStatus,
+}
+
+/// Query for the Main Switch Status.
+#[derive(Serialize)]
+pub struct GetMainSwitchStatus {
+    /// Device serial number.
+    #[serde(rename = "deviceSN")]
+    pub device_sn: String,
+}
+
+/// Query to set the Main Switch Status.
+#[derive(Serialize)]
+pub struct SetMainSwitchStatus {
+    /// Device serial number.
+    #[serde(rename = "deviceSN")]
+    pub device_sn: String,
+    /// Whether the main switch shall be enabled (1) or disabled (0).
+    pub enable: u8,
+}
 
 /// Deserializes an `f64` value that may be represented as a number or a string in scientific notation.
 fn deserialize_scientific_notation<'de, D>(deserializer: D) -> Result<f64, D::Error>

@@ -1,7 +1,7 @@
 //! Request DTOs for FoxESS API operations.
 //!
 
-use serde::{Deserialize};
+use serde::{Deserialize, Serialize};
 
 /// Work mode information including available modes and their units.
 #[derive(Deserialize)]
@@ -68,60 +68,79 @@ pub struct Properties {
 }
 
 /// Additional parameters for specific work modes or settings.
-#[derive(Deserialize)]
+#[derive(Deserialize, Serialize)]
 pub struct ExtraParam {
     /// Feed-in power limit.
-    #[serde(rename = "fdPwr")]
+    #[serde(rename = "fdPwr", skip_serializing_if = "Option::is_none")]
     pub fd_pwr: Option<f64>,
     /// Minimum State of Charge (SoC) when on grid.
-    #[serde(rename = "minSocOnGrid")]
+    #[serde(rename = "minSocOnGrid", skip_serializing_if = "Option::is_none")]
     pub min_soc_on_grid: Option<f64>,
     /// Feed-in State of Charge (SoC) limit.
-    #[serde(rename = "fdSoc")]
+    #[serde(rename = "fdSoc", skip_serializing_if = "Option::is_none")]
     pub fd_soc: Option<f64>,
     /// Maximum State of Charge (SoC).
-    #[serde(rename = "maxSoc")]
+    #[serde(rename = "maxSoc", skip_serializing_if = "Option::is_none")]
     pub max_soc: Option<f64>,
     /// Import power limit from the grid.
-    #[serde(rename = "importLimit")]
+    #[serde(rename = "importLimit", skip_serializing_if = "Option::is_none")]
     pub import_limit: Option<f64>,
     /// Export power limit to the grid.
-    #[serde(rename = "exportLimit")]
+    #[serde(rename = "exportLimit", skip_serializing_if = "Option::is_none")]
     pub export_limit: Option<f64>,
     /// Photovoltaic (PV) power limit.
-    #[serde(rename = "pvLimit")]
+    #[serde(rename = "pvLimit", skip_serializing_if = "Option::is_none")]
     pub pv_limit: Option<f64>,
     /// Reactive power settings.
-    #[serde(rename = "reactivePower")]
+    #[serde(rename = "reactivePower", skip_serializing_if = "Option::is_none")]
     pub reactive_power: Option<f64>,
 }
 
+impl ExtraParam {
+    /// True if *all* fields are `None`.
+    pub fn is_empty(&self) -> bool {
+        self.fd_pwr.is_none()
+            && self.min_soc_on_grid.is_none()
+            && self.fd_soc.is_none()
+            && self.max_soc.is_none()
+            && self.import_limit.is_none()
+            && self.export_limit.is_none()
+            && self.pv_limit.is_none()
+            && self.reactive_power.is_none()
+    }
+}
+
+/// Used by serde to skip `extraParam` when it is `None` *or* `Some(ExtraParam { all None })`.
+fn extra_param_is_none_or_empty(v: &Option<ExtraParam>) -> bool {
+    v.as_ref().is_none_or(ExtraParam::is_empty)
+}
+
 /// A scheduled task group defining a work mode for a specific time window.
-#[derive(Deserialize)]
+#[derive(Deserialize, Serialize)]
 pub struct Group {
-    /// End hour of the scheduled window.
-    #[serde(rename = "endHour")]
-    pub end_hour: i64,
-    /// Work mode to be used during this time window.
-    #[serde(rename = "workMode")]
-    pub work_mode: String,
     /// Start hour of the scheduled window.
     #[serde(rename = "startHour")]
     pub start_hour: i64,
-    /// Additional parameters specific to this group.
-    #[serde(rename = "extraParam")]
-    pub extra_param: Option<ExtraParam>,
     /// Start minute of the scheduled window.
     #[serde(rename = "startMinute")]
     pub start_minute: i64,
+    /// End hour of the scheduled window.
+    #[serde(rename = "endHour")]
+    pub end_hour: i64,
     /// End minute of the scheduled window.
     #[serde(rename = "endMinute")]
     pub end_minute: i64,
+    /// Work mode to be used during this time window.
+    #[serde(rename = "workMode")]
+    pub work_mode: String,
+    /// Additional parameters specific to this group.
+    #[serde(rename = "extraParam", skip_serializing_if = "extra_param_is_none_or_empty")]
+    pub extra_param: Option<ExtraParam>,
 }
 
-/// Information about a time-series based scheduler configuration.
+/// Information about a time-segments based scheduler configuration.
 #[derive(Deserialize)]
-pub struct TimeSeriesInfo {
+pub struct TimeSegmentsInfo {
     /// Whether the scheduler is enabled (1) or disabled (0).
     pub enable: i64,
     /// Maximum number of schedule groups allowed.
@@ -133,11 +152,22 @@ pub struct TimeSeriesInfo {
     pub properties: Properties,
 }
 
-/// Result of a scheduler time series query from the FoxESS API.
+/// Result of a scheduler time segments query from the FoxESS API.
 #[derive(Deserialize)]
-pub struct SchedulerTimeSeriesResult {
+pub struct SchedulerTimeSegmentsResult {
     /// The actual scheduler information.
-    pub result: TimeSeriesInfo,
+    pub result: TimeSegmentsInfo,
 }
 
+#[derive(Serialize)]
+pub struct SchedulerTimeSegmentsRequest {
+    #[serde(rename = "deviceSN")]
+    pub device_sn: String,
+    /// * 'false' - Parameters not provided in `extraParam` remain unchanged. This is the default value if not provided.
+    /// * 'true' - Parameters not provided in `extraParam` are restored to system defaults.
+    #[serde(rename = "isDefault")]
+    pub is_default: bool,
+    /// List of scheduled groups.
+    pub groups: Vec<Group>,
+}
 

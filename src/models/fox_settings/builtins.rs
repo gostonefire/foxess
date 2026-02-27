@@ -2,8 +2,9 @@
 //! These marker structs are used to implement the [SettingSpec] trait for the builtin settings.
 //!
 
+use std::str::FromStr;
 use crate::fox_settings::{SettableSettingSpec, SettingSpec};
-use crate::{FoxError, FoxSettings};
+use crate::{FoxError, FoxSettings, FoxWorkModes};
 
 /// Specification for the `ExportLimit` setting.
 pub struct ExportLimit;
@@ -69,11 +70,21 @@ impl SettableSettingSpec for MaxSoc {
 /// Specification for the `WorkMode` setting.
 pub struct WorkMode;
 impl SettingSpec for WorkMode {
-    type Value = String;
+    type Value = FoxWorkModes;
     const SETTING: FoxSettings = FoxSettings::WorkMode;
 
     fn parse(raw: String) -> Result<Self::Value, FoxError> {
-        Ok(raw)
+        FoxWorkModes::from_str(&raw).map_err(|_| FoxError::SettingParseError {
+            setting: Self::SETTING.as_str(),
+            value: raw,
+            error: String::new(),
+        })
+    }
+}
+
+impl SettableSettingSpec for WorkMode {
+    fn format(value: &Self::Value) -> String {
+        value.as_str().to_string()
     }
 }
 

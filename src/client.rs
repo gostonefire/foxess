@@ -22,12 +22,13 @@ use std::collections::HashMap;
 use std::time::Duration;
 use chrono::{DateTime, Utc};
 use crate::client::helper::FoxHelper;
-use crate::FoxError;
+use crate::{FoxError, TimeSegmentsDataRequest};
 use crate::{VariablesDataHistory, VariablesData, FoxVariables, AvailableVariables};
 use crate::fox_variables::VariableSpec;
 use crate::{FoxSettings,SettingsData, SettingsDataPoint};
 use crate::fox_settings::{SettableSettingSpec, SettingSpec};
-use crate::models::scheduler::TimeSeriesData;
+use crate::models::main_switch::MainSwitchStatus;
+use crate::models::scheduler::TimeSegmentsData;
 
 const DEFAULT_REQUEST_DOMAIN: &str = "https://www.foxesscloud.com";
 
@@ -321,12 +322,64 @@ impl Fox {
     ///
     /// # Returns
     /// * `Result<String, FoxError>` - A string containing the scheduler time segments.
-    pub async fn get_scheduler_time_segments(&self) -> Result<TimeSeriesData, FoxError> {
+    pub async fn get_scheduler_time_segments(&self) -> Result<TimeSegmentsData, FoxError> {
         let (req_json, path) = self.fox_helper.pre_get_scheduler_time_segments()?;
 
         let json = self.post_request(path, req_json).await?;
 
         self.fox_helper.post_get_scheduler_time_segments(&json)
+    }
+
+    /// Sets inverter scheduler time segments.
+    ///
+    /// For more information, see the [FoxESS API documentation](https://www.foxesscloud.com/public/i18n/en/OpenApiDocument.html#set20the20time20segment20information0a3ca20id3dset20the20time20segment20information14983e203ca3e)
+    ///
+    /// # Arguments
+    /// * `time_segments` - The time segments to set.
+    ///
+    /// # Returns
+    /// * `Result<(), FoxError>` - `Ok(())` if the set scheduler time segments was successfull.
+    pub async fn set_scheduler_time_segments(&self, time_segments: TimeSegmentsDataRequest) -> Result<(), FoxError> {
+        let (req_json, path) = self.fox_helper.pre_set_scheduler_time_segments(time_segments)?;
+
+        let _ = self.post_request(path, req_json).await?;
+
+        Ok(())
+    }
+
+    /// Gets the main switch status
+    ///
+    /// The result shows whether the main switch is supported and whether it is enabled.
+    /// When enabled, the mode scheduler is active and controls the mode selections through its schedule,
+    /// which also means that it is not possible to set the working mode through the set settings API
+    ///
+    /// For more information, see the [FoxESS API documentation](https://www.foxesscloud.com/public/i18n/en/OpenApiDocument.html#get20the20main20switch20status0a3ca20id3dget20the20main20switch20status7193e203ca3e)
+    ///
+    /// # Returns
+    /// * `Result<MainSwitchStatus, FoxError>` - The main switch status.
+    pub async fn get_main_switch_status(&self) -> Result<MainSwitchStatus, FoxError> {
+        let (req_json, path) = self.fox_helper.pre_get_main_switch_status()?;
+
+        let json = self.post_request(path, req_json).await?;
+
+        self.fox_helper.post_get_main_switch_status(&json)
+    }
+
+    /// Sets the main switch status
+    ///
+    /// If the main switch status is enabled, the mode scheduler kicks in and any mode selection is done
+    /// through its schedule. To be able to control working modes, the main switch must be disabled.
+    ///
+    /// For more information, see the [FoxESS API documentation](https://www.foxesscloud.com/public/i18n/en/OpenApiDocument.html#set20the20main20switch20status0a3ca20id3dset20the20main20switch20status7193e203ca3e)
+    ///
+    /// # Arguments
+    /// * `enable`- true to enable, false to disable
+    pub async fn set_main_switch_status(&self, enable: bool) -> Result<(), FoxError> {
+        let (req_json, path) = self.fox_helper.pre_set_main_switch_status(enable)?;
+
+        let _ = self.post_request(path, req_json).await?;
+
+        Ok(())
     }
 
     /// Gets a list of available variables from the FoxESS Cloud.
@@ -662,12 +715,64 @@ impl Fox {
     ///
     /// # Returns
     /// * `Result<String, FoxError>` - A string containing the scheduler time segments.
-    pub fn get_scheduler_time_segments(&self) -> Result<TimeSeriesData, FoxError> {
+    pub fn get_scheduler_time_segments(&self) -> Result<TimeSegmentsData, FoxError> {
         let (req_json, path) = self.fox_helper.pre_get_scheduler_time_segments()?;
 
         let json = self.post_request(path, req_json)?;
-        println!("{}", json);
+
         self.fox_helper.post_get_scheduler_time_segments(&json)
+    }
+
+    /// Sets inverter scheduler time segments.
+    ///
+    /// For more information, see the [FoxESS API documentation](https://www.foxesscloud.com/public/i18n/en/OpenApiDocument.html#set20the20time20segment20information0a3ca20id3dset20the20time20segment20information14983e203ca3e)
+    /// 
+    /// # Arguments
+    /// * `time_segments` - The time segments to set.
+    /// 
+    /// # Returns
+    /// * `Result<(), FoxError>` - `Ok(())` if the set scheduler time segments was successfull.
+    pub fn set_scheduler_time_segments(&self, time_segments: TimeSegmentsDataRequest) -> Result<(), FoxError> {
+        let (req_json, path) = self.fox_helper.pre_set_scheduler_time_segments(time_segments)?;
+
+        let _ = self.post_request(path, req_json)?;
+
+        Ok(())
+    }
+
+    /// Gets the main switch status
+    ///
+    /// The result shows whether the main switch is supported and whether it is enabled.
+    /// When enabled, the mode scheduler is active and controls the mode selections through its schedule,
+    /// which also means that it is not possible to set the working mode through the set settings API
+    ///
+    /// For more information, see the [FoxESS API documentation](https://www.foxesscloud.com/public/i18n/en/OpenApiDocument.html#get20the20main20switch20status0a3ca20id3dget20the20main20switch20status7193e203ca3e)
+    ///
+    /// # Returns
+    /// * `Result<MainSwitchStatus, FoxError>` - The main switch status.
+    pub fn get_main_switch_status(&self) -> Result<MainSwitchStatus, FoxError> {
+        let (req_json, path) = self.fox_helper.pre_get_main_switch_status()?;
+
+        let json = self.post_request(path, req_json)?;
+
+        self.fox_helper.post_get_main_switch_status(&json)
+    }
+
+    /// Sets the main switch status
+    ///
+    /// If the main switch status is enabled, the mode scheduler kicks in and any mode selection is done
+    /// through its schedule. To be able to control working modes, the main switch must be disabled.
+    ///
+    /// For more information, see the [FoxESS API documentation](https://www.foxesscloud.com/public/i18n/en/OpenApiDocument.html#set20the20main20switch20status0a3ca20id3dset20the20main20switch20status7193e203ca3e)
+    ///
+    /// # Arguments
+    /// * `enable`- true to enable, false to disable
+    pub fn set_main_switch_status(&self, enable: bool) -> Result<(), FoxError> {
+        let (req_json, path) = self.fox_helper.pre_set_main_switch_status(enable)?;
+
+        let _ = self.post_request(path, req_json)?;
+
+        Ok(())
     }
 
     /// Gets a list of available variables from the FoxESS Cloud.

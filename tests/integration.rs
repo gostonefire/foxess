@@ -2,8 +2,7 @@ extern crate alloc;
 use std::{env, fs};
 use std::path::PathBuf;
 use thiserror::Error;
-use foxess::Fox;
-// use foxess::fox_variables::RunningState;
+use foxess::{Fox};
 
 #[cfg(feature = "async")]
 #[tokio::test]
@@ -28,14 +27,61 @@ async fn it_works() {
         panic!("Failed to create Fox instance: {e}");
     });
 
+    /*
+    let _ = fox.set_setting_typed::<WorkMode>(FoxWorkModes::SelfUse).await.unwrap_or_else(|e| {
+        panic!("Failed to set work mode: {e}");
+    });
+
+    let _ = fox.set_main_switch_status(false).await.unwrap_or_else(|e| {
+        panic!("Failed to set main switch status: {e}");
+    });
+    */
+
+    let x = fox.get_main_switch_status().await.unwrap_or_else(|e| {
+        panic!("Failed to get main switch status: {e}");
+    });
+
+    println!("Main switch status: {:?}", x);
+
+    /*
+    let x = fox.get_setting_typed::<WorkMode>().await.unwrap_or_else(|e| {
+        panic!("Failed to get work mode: {e}");
+    });
+
+    println!("Work mode: {}", x.as_str());
+
     let time_segments = fox.get_scheduler_time_segments().await.unwrap_or_else(|e| {
         panic!("Failed to get scheduler time segments: {e}");
     });
-    
+
     println!("Time segments:\n{:?}", time_segments);
-    
-    /*
-    
+
+
+    let time_segments_request = TimeSegmentsDataRequest {
+        is_default: Some(false),
+        groups: vec![Group {
+            start_hour: 0,
+            start_minute: 0,
+            end_hour: 16,
+            end_minute: 14,
+            work_mode: FoxWorkModes::Backup,
+            extra_param: None,
+        },
+        Group {
+            start_hour: 16,
+            start_minute: 15,
+            end_hour: 23,
+            end_minute: 59,
+            work_mode: FoxWorkModes::SelfUse,
+            extra_param: None,
+        }],
+    };
+
+    let _ = fox.set_scheduler_time_segments(time_segments_request).await.unwrap_or_else(|e| {
+        panic!("Failed to set scheduler time segments: {e}");
+    });
+
+
     let mut variables = fox.get_available_variables().await.unwrap_or_else(|e| {
         panic!("Failed to get available variables: {e}");
     });
@@ -70,8 +116,8 @@ async fn it_works() {
         panic!("Failed to get device variables: {e}");
     });
     println!("Running state: {}", running_state);
-    
-     */
+
+    */
 }
 
 #[cfg(feature = "blocking")]
@@ -97,13 +143,61 @@ fn it_works() {
         panic!("Failed to create Fox instance: {e}");
     });
 
+    /*
+    let _ = fox.set_setting_typed::<WorkMode>(FoxWorkModes::SelfUse).unwrap_or_else(|e| {
+        panic!("Failed to set work mode: {e}");
+    });
+
+    let _ = fox.set_main_switch_status(false).unwrap_or_else(|e| {
+        panic!("Failed to set main switch status: {e}");
+    });
+    */
+
+    let x = fox.get_main_switch_status().unwrap_or_else(|e| {
+        panic!("Failed to get main switch status: {e}");
+    });
+
+    println!("Main switch status: {:?}", x);
+
+    /*
+    let x = fox.get_setting_typed::<WorkMode>().unwrap_or_else(|e| {
+        panic!("Failed to get work mode: {e}");
+    });
+
+    println!("Work mode: {}", x.as_str());
+
     let time_segments = fox.get_scheduler_time_segments().unwrap_or_else(|e| {
         panic!("Failed to get scheduler time segments: {e}");
     });
 
     println!("Time segments:\n{:?}", time_segments);
 
-    /*
+
+    let time_segments_request = TimeSegmentsDataRequest {
+        is_default: Some(false),
+        groups: vec![Group {
+            start_hour: 0,
+            start_minute: 0,
+            end_hour: 16,
+            end_minute: 14,
+            work_mode: FoxWorkModes::Backup,
+            extra_param: None,
+        },
+        Group {
+            start_hour: 16,
+            start_minute: 15,
+            end_hour: 23,
+            end_minute: 59,
+            work_mode: FoxWorkModes::SelfUse,
+            extra_param: None,
+        }],
+    };
+
+    let _ = fox.set_scheduler_time_segments(time_segments_request).unwrap_or_else(|e| {
+        panic!("Failed to set scheduler time segments: {e}");
+    });
+
+
     let mut variables = fox.get_available_variables().unwrap_or_else(|e| {
         panic!("Failed to get available variables: {e}");
     });

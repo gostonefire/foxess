@@ -19,12 +19,13 @@ use chrono::{DateTime, Local, NaiveTime, TimeDelta, Timelike, Utc};
 use md5::{Digest, Md5};
 use reqwest::header::{HeaderMap, HeaderName, HeaderValue};
 use serde::{Deserialize, Serialize};
-use crate::{FoxError, FoxSettings, FoxVariables, FoxWorkModes};
+use crate::{FoxError, FoxSettings, FoxVariables, FoxWorkModes, TimeSegmentsDataRequest};
 use crate::fox_settings::SettableSettingSpec;
 use crate::models::{VariablesDataHistory, VariablesData, VariableDataSet, VariableDataPoint, VariableInfo, AvailableVariables};
-use crate::models::dto::{ChargingTime, ChargingTimeSchedule, DeviceHistoryData, DeviceHistoryResult, DeviceRealTimeResult, DeviceSettingsResult, DeviceVariablesResult, RequestDeviceHistoryData, RequestDeviceRealTimeData, RequestSettingsData, SetSetting};
-use crate::models::dto_scheduler::SchedulerTimeSeriesResult;
-use crate::models::scheduler::{ExtraParam, Group, MetaData, Properties, Range, TimeSeriesData, WorkMode};
+use crate::models::dto::{ChargingTime, ChargingTimeSchedule, DeviceHistoryData, DeviceHistoryResult, DeviceRealTimeResult, DeviceSettingsResult, DeviceVariablesResult, GetMainSwitchStatus, MainSwitchStatusResult, RequestDeviceHistoryData, RequestDeviceRealTimeData, RequestSettingsData, SetMainSwitchStatus, SetSetting};
+use crate::models::dto_scheduler::{SchedulerTimeSegmentsRequest, SchedulerTimeSegmentsResult};
+use crate::models::main_switch::MainSwitchStatus;
+use crate::models::scheduler::{ExtraParam, Group, MetaData, Properties, Range, TimeSegmentsData, WorkMode};
 
 pub(crate) struct FoxHelper {
     api_key: String,
@@ -260,9 +261,9 @@ impl FoxHelper {
     /// 
     /// # Returns
     /// * `Result<String, FoxError>` - A string containing the scheduler time segments.
-    pub(crate) fn post_get_scheduler_time_segments(&self, json: &str) -> Result<TimeSeriesData, FoxError> {
+    pub(crate) fn post_get_scheduler_time_segments(&self, json: &str) -> Result<TimeSegmentsData, FoxError> {
 
-        let ts = serde_json::from_str::<SchedulerTimeSeriesResult>(json)?;
+        let ts = serde_json::from_str::<SchedulerTimeSegmentsResult>(json)?;
 
         let enum_list = ts.result.properties.work_mode.enum_list
             .iter()
@@ -289,7 +290,7 @@ impl FoxHelper {
             }
         }).collect();
         
-        let result = TimeSeriesData {
+        let result = TimeSegmentsData {
             enable: ts.result.enable,
             max_group_count: ts.result.max_group_count,
             groups,
@@ -369,6 +370,98 @@ impl FoxHelper {
         Ok(result)
     }
 
+    /// Pre-network request: Sets inverter scheduler time segments.
+    ///
+    /// For more information, see the [FoxESS API documentation](https://www.foxesscloud.com/public/i18n/en/OpenApiDocument.html#set20the20time20segment20information0a3ca20id3dset20the20time20segment20information14983e203ca3e)
+    ///
+    /// # Arguments
+    /// * `time_segments` - The time segments to set.
+    ///
+    /// # Returns
+    /// * `Result<(String,&'static str), FoxError>` - A tuple of a string containing the scheduler time segments, and the API path.
+    pub fn pre_set_scheduler_time_segments(&self, time_segments: TimeSegmentsDataRequest) -> Result<(String, &'static str), FoxError> {
+        let path  = "/op/v3/device/scheduler/enable";
+        
+        let groups = time_segments.groups.into_iter().map(|g| {
+            crate::models::dto_scheduler::Group {
+                end_hour: g.end_hour,
+                work_mode: g.work_mode.as_str().to_string(),
+                start_hour: g.start_hour,
+                extra_param: g.extra_param.map(|ep| {
+                    crate::models::dto_scheduler::ExtraParam {
+                        fd_pwr: ep.fd_pwr,
+                        min_soc_on_grid: ep.min_soc_on_grid,
+                        fd_soc: ep.fd_soc,
+                        max_soc: ep.max_soc,
+                        import_limit: ep.import_limit,
+                        export_limit: ep.export_limit,
+                        pv_limit: ep.pv_limit,
+                        reactive_power: ep.reactive_power,
+                    }
+                }),
+                start_minute: g.start_minute,
+                end_minute: g.end_minute,
+            }
+        }).collect::<Vec<_>>();
+        
+        let req = SchedulerTimeSegmentsRequest {
+            device_sn:self.sn.to_string(),
+            is_default: time_segments.is_default.unwrap_or(false),
+            groups,
+        };
+        
+        Ok((serde_json::to_string(&req)?, path))
+    }
+
+    /// Pre-network request: Gets the main switch status
+    ///
+    /// For more information, see the [FoxESS API documentation](https://www.foxesscloud.com/public/i18n/en/OpenApiDocument.html#get20the20main20switch20status0a3ca20id3dget20the20main20switch20status7193e203ca3e)
+    ///
+    /// # Returns
+    /// * `Result<(String, &'static str), FoxError>` - A tuple of a string containing the request for status, and the API path.
+    pub(crate) fn pre_get_main_switch_status(&self) -> Result<(String, &'static str), FoxError> {
+        let path = "/op/v1/device/scheduler/get/flag";
+
+        let req = GetMainSwitchStatus {
+            device_sn: self.sn.to_string(),
+        };
+
+        Ok((serde_json::to_string(&req)?, path))
+    }
+
+    /// Post-network request: Gets the main switch status
+    ///
+    /// # Arguments
+    /// * `json` - The JSON response string from the API.
+    ///
+    /// # Returns
+    /// * `Result<MainSwitchStatus, FoxError>` - The main switch status.
+    pub(crate) fn post_get_main_switch_status(&self, json: &str) -> Result<MainSwitchStatus, FoxError> {
+        let fox_data: MainSwitchStatusResult = serde_json::from_str(json)?;
+
+        Ok(MainSwitchStatus {
+            support: fox_data.result.support,
+            enable: fox_data.result.enable,
+        })
+    }
+
+    /// Pre-network request: Sets the main switch status
+    ///
+    /// For more information, see the [FoxESS API documentation](https://www.foxesscloud.com/public/i18n/en/OpenApiDocument.html#set20the20main20switch20status0a3ca20id3dset20the20main20switch20status7193e203ca3e)
+    ///
+    /// # Arguments
+    /// * `enable`- true to enable, false to disable
+    pub(crate) fn pre_set_main_switch_status(&self, enable: bool) -> Result<(String, &'static str), FoxError> {
+        let path = "/op/v1/device/scheduler/set/flag";
+
+        let req = SetMainSwitchStatus {
+            device_sn: self.sn.to_string(),
+            enable: enable as u8,
+        };
+
+        Ok((serde_json::to_string(&req)?, path))
+    }
+
     /// Pre-network request: Prepare the request for available variables.
     ///
     /// For more information, see the [FoxESS API documentation](https://www.foxesscloud.com/public/i18n/en/OpenApiDocument.html#get20available20variables0a3ca20id3dget20available20variables4303e203ca3e).
@@ -387,7 +480,7 @@ impl FoxHelper {
     /// * `json` - The JSON response string from the API.
     ///
     /// # Returns
-    /// * `Result<String, FoxError>` - A vector with available variables.
+    /// * `Result<AvailableVariables, FoxError>` - A vector with available variables.
     pub(crate) fn post_get_available_variables(&self, json: &str) -> Result<AvailableVariables, FoxError> {
         let fox_data: DeviceVariablesResult = serde_json::from_str(json)?;
 

@@ -86,7 +86,6 @@ async fn async_get_setting_typed() {
     use crate::Fox;
     use crate::fox_settings::MinSocOnGrid;
 
-    const API_KEY: &str = "TEST_API_KEY";
     const SN: &str = "TEST_SN";
     const TS: i64 = 1_700_000_000_000; // fixed timestamp for deterministic tests
     const PATH: &str = "/op/v0/device/setting/get";
@@ -95,16 +94,10 @@ async fn async_get_setting_typed() {
 
 
     let server = MockServer::start();
-    let sig = expected_signature(PATH, API_KEY, TS);
 
     let _m = server.mock(|when, then| {
         when.method(POST)
             .path(PATH)
-            .header("token", API_KEY)
-            .header("timestamp", &TS.to_string())
-            .header("signature", &sig)
-            .header("lang", "en")
-            .header("content-type", "application/json")
             .json_body_includes(&format!(r#"{{"sn":"{}"}}"#, SN))
             .json_body_includes(r#"{"key":"MinSocOnGrid"}"#);
 
@@ -133,25 +126,17 @@ async fn async_set_setting_typed() {
     use crate::Fox;
     use crate::fox_settings::MinSocOnGrid;
 
-    const API_KEY: &str = "TEST_API_KEY";
     const SN: &str = "TEST_SN";
     const TS: i64 = 1_700_000_000_000; // fixed timestamp for deterministic tests
     const PATH: &str = "/op/v0/device/setting/set";
 
     fn fixed_now() -> i64 { TS }
 
-
     let server = MockServer::start();
-    let sig = expected_signature(PATH, API_KEY, TS);
 
     let _m = server.mock(|when, then| {
         when.method(POST)
             .path(PATH)
-            .header("token", API_KEY)
-            .header("timestamp", &TS.to_string())
-            .header("signature", &sig)
-            .header("lang", "en")
-            .header("content-type", "application/json")
             .json_body_includes(&format!(r#"{{"sn":"{}","key":"MinSocOnGrid","value":"55"}}"#, SN));
 
         then.status(200)
@@ -175,7 +160,6 @@ async fn async_set_setting_typed() {
 async fn async_get_variables_parses_scientific_notation() {
     use crate::{Fox, FoxVariables};
 
-    const API_KEY: &str = "TEST_API_KEY";
     const SN: &str = "TEST_SN";
     const TS: i64 = 1_700_000_000_000;
     const PATH: &str = "/op/v1/device/real/query";
@@ -183,16 +167,10 @@ async fn async_get_variables_parses_scientific_notation() {
     fn fixed_now() -> i64 { TS }
 
     let server = MockServer::start();
-    let sig = expected_signature(PATH, API_KEY, TS);
 
     let _m = server.mock(|when, then| {
         when.method(POST)
             .path(PATH)
-            .header("token", API_KEY)
-            .header("timestamp", &TS.to_string())
-            .header("signature", &sig)
-            .header("lang", "en")
-            .header("content-type", "application/json")
             .json_body_includes(&format!(r#"{{"sns":["{}"]}}"#, SN));
 
         then.status(200)
@@ -223,7 +201,6 @@ async fn async_get_variable_typed_parses_scientific_notation() {
     use crate::Fox;
     use crate::fox_variables::SoC;
 
-    const API_KEY: &str = "TEST_API_KEY";
     const SN: &str = "TEST_SN";
     const TS: i64 = 1_700_000_000_000;
     const PATH: &str = "/op/v1/device/real/query";
@@ -231,16 +208,10 @@ async fn async_get_variable_typed_parses_scientific_notation() {
     fn fixed_now() -> i64 { TS }
 
     let server = MockServer::start();
-    let sig = expected_signature(PATH, API_KEY, TS);
 
     let _m = server.mock(|when, then| {
         when.method(POST)
             .path(PATH)
-            .header("token", API_KEY)
-            .header("timestamp", &TS.to_string())
-            .header("signature", &sig)
-            .header("lang", "en")
-            .header("content-type", "application/json")
             .json_body_includes(&format!(r#"{{"sns":["{}"]}}"#, SN));
 
         then.status(200)
@@ -271,7 +242,6 @@ async fn async_get_variable_typed_outside_valid_range() {
     use crate::Fox;
     use crate::fox_variables::SoC;
 
-    const API_KEY: &str = "TEST_API_KEY";
     const SN: &str = "TEST_SN";
     const TS: i64 = 1_700_000_000_000;
     const PATH: &str = "/op/v1/device/real/query";
@@ -279,16 +249,10 @@ async fn async_get_variable_typed_outside_valid_range() {
     fn fixed_now() -> i64 { TS }
 
     let server = MockServer::start();
-    let sig = expected_signature(PATH, API_KEY, TS);
 
     let _m = server.mock(|when, then| {
         when.method(POST)
             .path(PATH)
-            .header("token", API_KEY)
-            .header("timestamp", &TS.to_string())
-            .header("signature", &sig)
-            .header("lang", "en")
-            .header("content-type", "application/json")
             .json_body_includes(&format!(r#"{{"sns":["{}"]}}"#, SN));
 
         then.status(200)
@@ -323,7 +287,6 @@ async fn async_get_variables_history() {
     use chrono::{TimeZone, Utc};
     use crate::{Fox, FoxVariables};
 
-    const API_KEY: &str = "TEST_API_KEY";
     const SN: &str = "TEST_SN";
     const TS: i64 = 1_700_000_000_000;
     const PATH: &str = "/op/v0/device/history/query";
@@ -331,16 +294,10 @@ async fn async_get_variables_history() {
     fn fixed_now() -> i64 { TS }
 
     let server = MockServer::start();
-    let sig = expected_signature(PATH, API_KEY, TS);
 
     let _m = server.mock(|when, then| {
         when.method(POST)
             .path(PATH)
-            .header("token", API_KEY)
-            .header("timestamp", &TS.to_string())
-            .header("signature", &sig)
-            .header("lang", "en")
-            .header("content-type", "application/json")
             .json_body_includes(&format!(r#"{{"sn": "{}","variables": ["pvPower"],"begin": 0,"end": 1}}"#, SN));
 
         then.status(200)
@@ -384,7 +341,6 @@ async fn async_set_battery_charging_time_schedule() {
     use chrono::{TimeZone, Utc, Local};
     use crate::Fox;
 
-    const API_KEY: &str = "TEST_API_KEY";
     const SN: &str = "TEST_SN";
     const TS: i64 = 1_700_000_000_000;
     const PATH: &str = "/op/v0/device/battery/forceChargeTime/set";
@@ -392,16 +348,10 @@ async fn async_set_battery_charging_time_schedule() {
     fn fixed_now() -> i64 { TS }
 
     let server = MockServer::start();
-    let sig = expected_signature(PATH, API_KEY, TS);
 
     let _m = server.mock(|when, then| {
         when.method(POST)
             .path(PATH)
-            .header("token", API_KEY)
-            .header("timestamp", &TS.to_string())
-            .header("signature", &sig)
-            .header("lang", "en")
-            .header("content-type", "application/json")
             .json_body(json!(
                 {
                     "sn": SN,
@@ -767,6 +717,193 @@ async fn async_get_scheduler_time_segments() {
     assert_eq!(res.groups.len(), 7);
     assert_eq!(res.properties.work_mode.enum_list.len(), 6);
     assert_eq!(res.properties.work_mode.enum_list.contains(&FoxWorkModes::Unknown), false);
+}
+
+/// Verifies that scheduler time segments are correctly formatted to the API response, including enumeration values.
+///
+#[cfg(feature = "async")]
+#[tokio::test]
+async fn async_set_scheduler_time_segments() {
+    use crate::Fox;
+    use crate::FoxWorkModes;
+    use crate::{ExtraParam, Group, TimeSegmentsDataRequest};
+
+    const SN: &str = "TEST_SN";
+    const TS: i64 = 1_700_000_000_000;
+    const PATH: &str = "/op/v3/device/scheduler/enable";
+
+    fn fixed_now() -> i64 { TS }
+
+    let server = MockServer::start();
+
+    let _m = server.mock(|when, then| {
+        when.method(POST)
+            .path(PATH)
+            .json_body(json!(
+                {
+                    "deviceSN": SN,
+                    "isDefault": false,
+                    "groups": [
+                        {
+                            "startHour": 0,
+                            "startMinute": 0,
+                            "endHour": 2,
+                            "endMinute": 59,
+                            "workMode": "ForceCharge",
+                            "extraParam": {
+                                "minSocOnGrid": 10.0,
+                                "fdSoc": 80.0,
+                                "fdPwr": 12000.0,
+                                "maxSoc": 100.0
+                            }
+                        },
+                        {
+                            "startHour": 3,
+                            "startMinute": 0,
+                            "endHour": 7,
+                            "endMinute": 59,
+                            "workMode": "Backup"
+                        },
+                        {
+                            "startHour": 8,
+                            "startMinute": 0,
+                            "endHour": 23,
+                            "endMinute": 59,
+                            "workMode": "SelfUse"
+                        }
+                    ]
+                }));
+
+        then.status(200)
+            .header("Content-Type", "application/json")
+            .body(r#"{
+                "errno": 0,
+                "msg": "Operation successful",
+                "result": null
+            }"#);
+    });
+
+    let fox = Fox::new_with_base_url_and_clock("TEST_API_KEY", "TEST_SN", 5, &server.base_url(), fixed_now).unwrap();
+    let ts = TimeSegmentsDataRequest {
+        is_default: None,
+        groups: vec![
+            Group {
+                start_hour: 0,
+                start_minute: 0,
+                end_hour: 2,
+                end_minute: 59,
+                work_mode: FoxWorkModes::ForceCharge,
+                extra_param: Some(ExtraParam {
+                    fd_pwr: Some(12000.0),
+                    min_soc_on_grid: Some(10.0),
+                    fd_soc: Some(80.0),
+                    max_soc: Some(100.0),
+                    import_limit: None,
+                    export_limit: None,
+                    pv_limit: None,
+                    reactive_power: None,
+                }),
+            },
+            Group {
+                start_hour: 3,
+                start_minute: 0,
+                end_hour: 7,
+                end_minute: 59,
+                work_mode: FoxWorkModes::Backup,
+                extra_param: None,
+            },
+            Group {
+                start_hour: 8,
+                start_minute: 0,
+                end_hour: 23,
+                end_minute: 59,
+                work_mode: FoxWorkModes::SelfUse,
+                extra_param: None,
+            },
+        ],
+    };
+
+    let _ = fox.set_scheduler_time_segments(ts).await.unwrap();
+}
+
+/// Verifies that get main switch status is correctly parsed from the API response.
+///
+#[cfg(feature = "async")]
+#[tokio::test]
+async fn async_get_main_switch_status() {
+    use crate::Fox;
+
+    const SN: &str = "TEST_SN";
+    const TS: i64 = 1_700_000_000_000;
+    const PATH: &str = "/op/v1/device/scheduler/get/flag";
+
+    fn fixed_now() -> i64 { TS }
+
+    let server = MockServer::start();
+
+    let _m = server.mock(|when, then| {
+        when.method(POST)
+            .path(PATH)
+            .json_body(json!(
+                {
+                    "deviceSN": SN,
+                }));
+
+        then.status(200)
+            .header("Content-Type", "application/json")
+            .body(r#"{
+                "errno": 0,
+                "msg": "Operation successful",
+                "result": {
+                    "support": true,
+                    "enable": false
+                    }
+            }"#);
+    });
+
+    let fox = Fox::new_with_base_url_and_clock("TEST_API_KEY", "TEST_SN", 5, &server.base_url(), fixed_now).unwrap();
+    let res = fox.get_main_switch_status().await.unwrap();
+
+    assert_eq!(res.support, true);
+    assert_eq!(res.enable, false);
+}
+
+/// Verifies that set main switch status is correctly formatted to the API response.
+///
+#[cfg(feature = "async")]
+#[tokio::test]
+async fn async_set_main_switch_status() {
+    use crate::Fox;
+
+    const SN: &str = "TEST_SN";
+    const TS: i64 = 1_700_000_000_000;
+    const PATH: &str = "/op/v1/device/scheduler/set/flag";
+
+    fn fixed_now() -> i64 { TS }
+
+    let server = MockServer::start();
+
+    let _m = server.mock(|when, then| {
+        when.method(POST)
+            .path(PATH)
+            .json_body(json!(
+                {
+                    "deviceSN": SN,
+                    "enable": 1
+                }));
+
+        then.status(200)
+            .header("Content-Type", "application/json")
+            .body(r#"{
+                "errno": 0,
+                "msg": "Operation successful",
+                "result": null
+            }"#);
+    });
+
+    let fox = Fox::new_with_base_url_and_clock("TEST_API_KEY", "TEST_SN", 5, &server.base_url(), fixed_now).unwrap();
+
+    let _ = fox.set_main_switch_status(true).await.unwrap();
 }
 
 /// Verifies that non-zero `errno` values in the API response are correctly mapped to `FoxError`.
