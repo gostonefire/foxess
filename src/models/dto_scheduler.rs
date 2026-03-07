@@ -1,7 +1,9 @@
 //! Request DTOs for FoxESS API operations.
 //!
 
+use std::str::FromStr;
 use serde::{Deserialize, Serialize};
+use crate::models::scheduler as api_scheduler;
 
 /// Work mode information including available modes and their units.
 #[derive(Deserialize)]
@@ -157,6 +159,129 @@ pub struct TimeSegmentsInfo {
 pub struct SchedulerTimeSegmentsResult {
     /// The actual scheduler information.
     pub result: TimeSegmentsInfo,
+}
+
+impl From<&api_scheduler::ExtraParam> for ExtraParam {
+    fn from(value: &api_scheduler::ExtraParam) -> Self {
+        Self {
+            fd_pwr: value.fd_pwr,
+            min_soc_on_grid: value.min_soc_on_grid,
+            fd_soc: value.fd_soc,
+            max_soc: value.max_soc,
+            import_limit: value.import_limit,
+            export_limit: value.export_limit,
+            pv_limit: value.pv_limit,
+            reactive_power: value.reactive_power,
+        }
+    }
+}
+
+impl From<&api_scheduler::Group> for Group {
+    fn from(value: &api_scheduler::Group) -> Self {
+        Self {
+            start_hour: value.start_hour,
+            start_minute: value.start_minute,
+            end_hour: value.end_hour,
+            end_minute: value.end_minute,
+            work_mode: value.work_mode.as_str().to_string(),
+            extra_param: value.extra_param.as_ref().map(Into::into),
+        }
+    }
+}
+
+impl From<ExtraParam> for api_scheduler::ExtraParam {
+    fn from(value: ExtraParam) -> Self {
+        Self {
+            fd_pwr: value.fd_pwr,
+            min_soc_on_grid: value.min_soc_on_grid,
+            fd_soc: value.fd_soc,
+            max_soc: value.max_soc,
+            import_limit: value.import_limit,
+            export_limit: value.export_limit,
+            pv_limit: value.pv_limit,
+            reactive_power: value.reactive_power,
+        }
+    }
+}
+
+impl From<Group> for api_scheduler::Group {
+    fn from(value: Group) -> Self {
+        Self {
+            start_hour: value.start_hour,
+            start_minute: value.start_minute,
+            end_hour: value.end_hour,
+            end_minute: value.end_minute,
+            work_mode: crate::FoxWorkModes::from_str(&value.work_mode)
+                .unwrap_or(crate::FoxWorkModes::Unknown),
+            extra_param: value.extra_param.map(Into::into),
+        }
+    }
+}
+
+impl From<Structure> for api_scheduler::MetaData {
+    fn from(value: Structure) -> Self {
+        Self {
+            unit: value.unit,
+            precision: value.precision,
+            range: value.range.into(),
+        }
+    }
+}
+
+impl From<Range> for api_scheduler::Range {
+    fn from(value: Range) -> Self {
+        Self {
+            min: value.min,
+            max: value.max,
+        }
+    }
+}
+
+impl From<WorkMode> for api_scheduler::WorkMode {
+    fn from(value: WorkMode) -> Self {
+        Self {
+            enum_list: value
+                .enum_list
+                .into_iter()
+                .map(|mode| crate::FoxWorkModes::from_str(&mode).unwrap_or(crate::FoxWorkModes::Unknown))
+                .collect(),
+            unit: value.unit,
+            precision: value.precision,
+        }
+    }
+}
+
+impl From<Properties> for api_scheduler::Properties {
+    fn from(value: Properties) -> Self {
+        Self {
+            start_minute: value.start_minute.into(),
+            fd_pwr: value.fd_pwr.into(),
+            end_hour: value.end_hour.into(),
+            end_minute: value.end_minute.into(),
+            fd_soc: value.fd_soc.into(),
+            start_hour: value.start_hour.into(),
+            work_mode: value.work_mode.into(),
+            min_soc_on_grid: value.min_soc_on_grid.into(),
+            max_soc: value.max_soc.into(),
+        }
+    }
+}
+
+impl From<TimeSegmentsInfo> for api_scheduler::TimeSegmentsData {
+    fn from(value: TimeSegmentsInfo) -> Self {
+        Self {
+            enable: value.enable,
+            max_group_count: value.max_group_count,
+            groups: value.groups.into_iter().map(Into::into).collect(),
+            properties: value.properties.into(),
+        }
+    }
+}
+
+impl From<SchedulerTimeSegmentsResult> for api_scheduler::TimeSegmentsData {
+    fn from(value: SchedulerTimeSegmentsResult) -> Self {
+        value.result.into()
+    }
 }
 
 #[derive(Serialize)]

@@ -823,7 +823,7 @@ async fn async_set_scheduler_time_segments() {
         ],
     };
 
-    let _ = fox.set_scheduler_time_segments(ts).await.unwrap();
+    let _ = fox.set_scheduler_time_segments(&ts).await.unwrap();
 }
 
 /// Verifies that get main switch status is correctly parsed from the API response.

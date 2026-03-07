@@ -19,13 +19,13 @@ use chrono::{DateTime, Local, NaiveTime, TimeDelta, Timelike, Utc};
 use md5::{Digest, Md5};
 use reqwest::header::{HeaderMap, HeaderName, HeaderValue};
 use serde::{Deserialize, Serialize};
-use crate::{FoxError, FoxSettings, FoxVariables, FoxWorkModes, TimeSegmentsDataRequest};
+use crate::{FoxError, FoxSettings, FoxVariables, TimeSegmentsDataRequest};
 use crate::fox_settings::SettableSettingSpec;
 use crate::models::{VariablesDataHistory, VariablesData, VariableDataSet, VariableDataPoint, VariableInfo, AvailableVariables};
 use crate::models::dto::{ChargingTime, ChargingTimeSchedule, DeviceHistoryData, DeviceHistoryResult, DeviceRealTimeResult, DeviceSettingsResult, DeviceVariablesResult, GetMainSwitchStatus, MainSwitchStatusResult, RequestDeviceHistoryData, RequestDeviceRealTimeData, RequestSettingsData, SetMainSwitchStatus, SetSetting};
 use crate::models::dto_scheduler::{SchedulerTimeSegmentsRequest, SchedulerTimeSegmentsResult};
 use crate::models::main_switch::MainSwitchStatus;
-use crate::models::scheduler::{ExtraParam, Group, MetaData, Properties, Range, TimeSegmentsData, WorkMode};
+use crate::models::scheduler::TimeSegmentsData;
 
 pub(crate) struct FoxHelper {
     api_key: String,
@@ -262,112 +262,8 @@ impl FoxHelper {
     /// # Returns
     /// * `Result<String, FoxError>` - A string containing the scheduler time segments.
     pub(crate) fn post_get_scheduler_time_segments(&self, json: &str) -> Result<TimeSegmentsData, FoxError> {
-
-        let ts = serde_json::from_str::<SchedulerTimeSegmentsResult>(json)?;
-
-        let enum_list = ts.result.properties.work_mode.enum_list
-            .iter()
-            .map(|mode| FoxWorkModes::from_str(mode).unwrap_or(FoxWorkModes::Unknown))
-            .collect::<Vec<_>>();
-
-        let groups: Vec<Group> = ts.result.groups.into_iter().map(|g| {
-            Group {
-                end_hour: g.end_hour,
-                work_mode: FoxWorkModes::from_str(&g.work_mode).unwrap_or(FoxWorkModes::Unknown),
-                start_hour: g.start_hour,
-                extra_param: g.extra_param.map(|ep| ExtraParam {
-                    fd_pwr: ep.fd_pwr,
-                    min_soc_on_grid: ep.min_soc_on_grid,
-                    fd_soc: ep.fd_soc,
-                    max_soc: ep.max_soc,
-                    import_limit: ep.import_limit,
-                    export_limit: ep.export_limit,
-                    pv_limit: ep.pv_limit,
-                    reactive_power: ep.reactive_power,
-                }) ,
-                start_minute: g.start_minute,
-                end_minute: g.end_minute,
-            }
-        }).collect();
-        
-        let result = TimeSegmentsData {
-            enable: ts.result.enable,
-            max_group_count: ts.result.max_group_count,
-            groups,
-            properties: Properties {
-                start_minute: MetaData {
-                    unit: ts.result.properties.start_minute.unit,
-                    precision: ts.result.properties.start_minute.precision,
-                    range: Range {
-                        min: ts.result.properties.start_minute.range.min,
-                        max: ts.result.properties.start_minute.range.max,
-                    },
-                },
-                fd_pwr: MetaData {
-                    unit: ts.result.properties.fd_pwr.unit,
-                    precision: ts.result.properties.fd_pwr.precision,
-                    range: Range {
-                        min: ts.result.properties.fd_pwr.range.min,
-                        max: ts.result.properties.fd_pwr.range.max,
-                    },
-                },
-                end_hour: MetaData {
-                    unit: ts.result.properties.end_hour.unit,
-                    precision: ts.result.properties.end_hour.precision,
-                    range: Range {
-                        min: ts.result.properties.end_hour.range.min,
-                        max: ts.result.properties.end_hour.range.max,
-                    },
-                },
-                end_minute: MetaData {
-                    unit: ts.result.properties.end_minute.unit,
-                    precision: ts.result.properties.end_minute.precision,
-                    range: Range {
-                        min: ts.result.properties.end_minute.range.min,
-                        max: ts.result.properties.end_minute.range.max,
-                    },
-                },
-                fd_soc: MetaData {
-                    unit: ts.result.properties.fd_soc.unit,
-                    precision: ts.result.properties.fd_soc.precision,
-                    range: Range {
-                        min: ts.result.properties.fd_soc.range.min,
-                        max: ts.result.properties.fd_soc.range.max,
-                    },
-                },
-                start_hour: MetaData {
-                    unit: ts.result.properties.start_hour.unit,
-                    precision: ts.result.properties.start_hour.precision,
-                    range: Range {
-                        min: ts.result.properties.start_hour.range.min,
-                        max: ts.result.properties.start_hour.range.max,
-                    },
-                },
-                work_mode: WorkMode {
-                    enum_list,
-                    unit: ts.result.properties.work_mode.unit,
-                    precision: ts.result.properties.work_mode.precision,
-                },
-                min_soc_on_grid: MetaData {
-                    unit: ts.result.properties.min_soc_on_grid.unit,
-                    precision: ts.result.properties.min_soc_on_grid.precision,
-                    range: Range {
-                        min: ts.result.properties.min_soc_on_grid.range.min,
-                        max: ts.result.properties.min_soc_on_grid.range.max,
-                    },
-                },
-                max_soc: MetaData {
-                    unit: ts.result.properties.max_soc.unit,
-                    precision: ts.result.properties.max_soc.precision,
-                    range: Range {
-                        min: ts.result.properties.max_soc.range.min,
-                        max: ts.result.properties.max_soc.range.max,
-                    },
-                },
-            },
-        };
-
-        Ok(result)
+        let dto = serde_json::from_str::<SchedulerTimeSegmentsResult>(json)?;
+        Ok(dto.into())
     }
 
     /// Pre-network request: Sets inverter scheduler time segments.
@@ -379,35 +275,13 @@ impl FoxHelper {
     ///
     /// # Returns
     /// * `Result<(String,&'static str), FoxError>` - A tuple of a string containing the scheduler time segments, and the API path.
-    pub fn pre_set_scheduler_time_segments(&self, time_segments: TimeSegmentsDataRequest) -> Result<(String, &'static str), FoxError> {
+    pub fn pre_set_scheduler_time_segments(&self, time_segments: &TimeSegmentsDataRequest) -> Result<(String, &'static str), FoxError> {
         let path  = "/op/v3/device/scheduler/enable";
-        
-        let groups = time_segments.groups.into_iter().map(|g| {
-            crate::models::dto_scheduler::Group {
-                end_hour: g.end_hour,
-                work_mode: g.work_mode.as_str().to_string(),
-                start_hour: g.start_hour,
-                extra_param: g.extra_param.map(|ep| {
-                    crate::models::dto_scheduler::ExtraParam {
-                        fd_pwr: ep.fd_pwr,
-                        min_soc_on_grid: ep.min_soc_on_grid,
-                        fd_soc: ep.fd_soc,
-                        max_soc: ep.max_soc,
-                        import_limit: ep.import_limit,
-                        export_limit: ep.export_limit,
-                        pv_limit: ep.pv_limit,
-                        reactive_power: ep.reactive_power,
-                    }
-                }),
-                start_minute: g.start_minute,
-                end_minute: g.end_minute,
-            }
-        }).collect::<Vec<_>>();
         
         let req = SchedulerTimeSegmentsRequest {
             device_sn:self.sn.to_string(),
             is_default: time_segments.is_default.unwrap_or(false),
-            groups,
+            groups: time_segments.groups.iter().map(Into::into).collect(),
         };
         
         Ok((serde_json::to_string(&req)?, path))

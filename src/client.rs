@@ -339,7 +339,7 @@ impl Fox {
     ///
     /// # Returns
     /// * `Result<(), FoxError>` - `Ok(())` if the set scheduler time segments was successfull.
-    pub async fn set_scheduler_time_segments(&self, time_segments: TimeSegmentsDataRequest) -> Result<(), FoxError> {
+    pub async fn set_scheduler_time_segments(&self, time_segments: &TimeSegmentsDataRequest) -> Result<(), FoxError> {
         let (req_json, path) = self.fox_helper.pre_set_scheduler_time_segments(time_segments)?;
 
         let _ = self.post_request(path, req_json).await?;
@@ -732,7 +732,7 @@ impl Fox {
     /// 
     /// # Returns
     /// * `Result<(), FoxError>` - `Ok(())` if the set scheduler time segments was successfull.
-    pub fn set_scheduler_time_segments(&self, time_segments: TimeSegmentsDataRequest) -> Result<(), FoxError> {
+    pub fn set_scheduler_time_segments(&self, time_segments: &TimeSegmentsDataRequest) -> Result<(), FoxError> {
         let (req_json, path) = self.fox_helper.pre_set_scheduler_time_segments(time_segments)?;
 
         let _ = self.post_request(path, req_json)?;
