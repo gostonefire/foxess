@@ -33,7 +33,7 @@ use crate::models::scheduler::TimeSegmentsData;
 const DEFAULT_REQUEST_DOMAIN: &str = "https://www.foxesscloud.com";
 
 fn default_now_millis() -> i64 {
-    Utc::now().timestamp() * 1000
+    Utc::now().timestamp_millis()
 }
 
 /// A client for interacting with the FoxESS Open API.
