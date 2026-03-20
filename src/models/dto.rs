@@ -175,6 +175,20 @@ pub struct DeviceVariablesResult {
     pub result: Vec<HashMap<String, DeviceVariableInfo>>,
 }
 
+/// Error code information
+#[derive(Deserialize)]
+pub struct ErrorCodeInformation {
+    /// Error code description in English.
+    pub en: String,
+}
+
+/// Result of a get error code information query.
+#[derive(Deserialize)]
+pub struct ErrorCodeInformationResult {
+    /// List of error code information objects.
+    pub result: HashMap<String,ErrorCodeInformation>,
+}
+
 /// Represents the Main Switch Status state in the API.
 #[derive(Deserialize)]
 pub struct MainSwitchStatus {

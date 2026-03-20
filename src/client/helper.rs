@@ -22,7 +22,7 @@ use serde::{Deserialize, Serialize};
 use crate::{FoxError, FoxSettings, FoxVariables, TimeSegmentsDataRequest};
 use crate::fox_settings::SettableSettingSpec;
 use crate::models::{VariablesDataHistory, VariablesData, VariableDataSet, VariableDataPoint, VariableInfo, AvailableVariables};
-use crate::models::dto::{ChargingTime, ChargingTimeSchedule, DeviceHistoryData, DeviceHistoryResult, DeviceRealTimeResult, DeviceSettingsResult, DeviceVariablesResult, GetMainSwitchStatus, MainSwitchStatusResult, RequestDeviceHistoryData, RequestDeviceRealTimeData, RequestSettingsData, SetMainSwitchStatus, SetSetting};
+use crate::models::dto::{ChargingTime, ChargingTimeSchedule, DeviceHistoryData, DeviceHistoryResult, DeviceRealTimeResult, DeviceSettingsResult, DeviceVariablesResult, ErrorCodeInformationResult, GetMainSwitchStatus, MainSwitchStatusResult, RequestDeviceHistoryData, RequestDeviceRealTimeData, RequestSettingsData, SetMainSwitchStatus, SetSetting};
 use crate::models::dto_scheduler::{SchedulerTimeSegmentsRequest, SchedulerTimeSegmentsResult};
 use crate::models::main_switch::MainSwitchStatus;
 use crate::models::scheduler::TimeSegmentsData;
@@ -382,6 +382,38 @@ impl FoxHelper {
 
         Ok(AvailableVariables { variables })
     }
+
+    /// Pre-network request: Prepare the request for error code information.
+    ///
+    /// For more information, see the [FoxESS API documentation](https://www.foxesscloud.com/public/i18n/en/OpenApiDocument.html#get20error20code20information0a3ca20id3dget20error20code20information4303e203ca3e).
+    ///
+    /// # Returns
+    /// * `Result<&'static str, FoxError>` - A string containing the API path.
+    pub(crate) fn pre_get_error_code_information(&self) -> Result<&'static str, FoxError> {
+        let path = "/op/v0/device/fault/get";
+
+        Ok(path)
+    }
+
+    /// Post-network request: Process the response from the get error code information request.
+    ///
+    /// # Arguments
+    /// * `json` - The JSON response string from the API.
+    ///
+    /// # Returns
+    /// * `Result<AvailableVariables, FoxError>` - A hash map with available error code information.
+    pub(crate) fn post_get_error_code_information(&self, json: &str) -> Result<HashMap<u32, String>, FoxError> {
+        let fox_data: ErrorCodeInformationResult = serde_json::from_str(json)?;
+
+        let result: HashMap<u32, String> = fox_data
+            .result
+            .into_iter()
+            .filter_map(|(code, info)| code.parse::<u32>().ok().map(|num_code| (num_code, info.en)))
+            .collect();
+
+        Ok(result)
+    }
+
 
     /// Pre-network request: Prepare a POST request.
     ///

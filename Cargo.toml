@@ -1,6 +1,6 @@
 [package]
 name = "foxess"
-version = "1.0.0"
+version = "1.1.0"
 description = "Rust library for communication with FoxESS Cloud"
 homepage = "https://github.com/gostonefire/foxess"
 repository = "https://github.com/gostonefire/foxess"

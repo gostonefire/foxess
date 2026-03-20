@@ -512,6 +512,80 @@ async fn async_get_available_variables() {
     assert!(res.variables.iter().filter_map(|v| v.enumeration.as_ref()).any(|e| e.contains_key("163")));
 }
 
+/// Verifies that error code information is correctly parsed from the API response.
+///
+#[cfg(feature = "async")]
+#[tokio::test]
+async fn blocking_get_error_code_information() {
+    use crate::Fox;
+
+    const TS: i64 = 1_700_000_000_000;
+
+    fn fixed_now() -> i64 { TS }
+
+    let server = MockServer::start();
+
+    let _m = server.mock(|when, then| {
+        when.method(GET);
+        then.status(200)
+            .header("Content-Type", "application/json")
+            .body(r#"{
+                "errno": 0,
+                "msg": "Operation successful",
+                "result": {
+                    "1461": {
+                        "en": "Battery 3 Input Fault",
+                        "zh_CN": "电池3输入故障"
+                    },
+                    "1460": {
+                        "en": "Battery 2 Input Fault",
+                        "zh_CN": "电池2输入故障"
+                    },
+                    "1459": {
+                        "en": "Battery 1 Input Fault",
+                        "zh_CN": "电池1输入故障"
+                    },
+                    "1458": {
+                        "en": "Battery 3 Self-Check Fault",
+                        "zh_CN": "电池3自检故障"
+                    },
+                    "1457": {
+                        "en": "Battery 2 Self-Check Fault",
+                        "zh_CN": "电池2自检故障"
+                    },
+                    "1456": {
+                        "en": "Battery 1 Self-Check Fault",
+                        "zh_CN": "电池1自检故障"
+                    },
+                    "1455": {
+                        "en": "未知1455",
+                        "zh_CN": "TBD1455"
+                    },
+                    "1454": {
+                        "en": "未知1454",
+                        "zh_CN": "TBD1454"
+                    },
+                    "1453": {
+                        "en": "未知1453",
+                        "zh_CN": "TBD1453"
+                    },
+                    "1": {
+                        "de": "Keine Netzspannung verfügbar",
+                        "en": "No Utility",
+                        "zh_CN": "电网无电压",
+                        "pl": "Brak napięcia w sieci energetycznej"
+                    }
+                }
+            }"#);
+    });
+
+    let fox = Fox::new_with_base_url_and_clock("TEST_API_KEY", "TEST_SN", 5, &server.base_url(), fixed_now).unwrap();
+    let res = fox.get_error_code_information().await.unwrap();
+
+    assert_eq!(res.len(), 10);
+    assert_eq!(res.iter().filter(|e| *e.0 == 1 && e.1.eq("No Utility")).count(), 1);
+}
+
 /// Verifies that scheduler time segments are correctly parsed from the API response, including enumeration values.
 ///
 #[cfg(feature = "async")]

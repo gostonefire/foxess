@@ -398,6 +398,22 @@ impl Fox {
         Ok(available_variables)
     }
 
+    /// Gets a list of error code information.
+    ///
+    /// For more information, see the [FoxESS API documentation](https://www.foxesscloud.com/public/i18n/en/OpenApiDocument.html#get20error20code20information0a3ca20id3dget20error20code20information4303e203ca3e).
+    ///
+    /// # Returns
+    /// * `Result<AvailableVariables, FoxError>` - A hash map with available error code information.
+    pub async fn get_error_code_information(&self) -> Result<HashMap<u32, String>, FoxError> {
+        let path = self.fox_helper.pre_get_error_code_information()?;
+
+        let json = self.get_request(path, None).await?;
+
+        let error_code_info = self.fox_helper.post_get_error_code_information(&json)?;
+
+        Ok(error_code_info)
+    }
+
     /// Builds and sends a POST request to the FoxESS API.
     ///
     /// This is an internal helper method that handles request signing and network communication.
@@ -789,6 +805,22 @@ impl Fox {
         let available_variables = self.fox_helper.post_get_available_variables(&json)?;
 
         Ok(available_variables)
+    }
+
+    /// Gets a list of error code information.
+    ///
+    /// For more information, see the [FoxESS API documentation](https://www.foxesscloud.com/public/i18n/en/OpenApiDocument.html#get20error20code20information0a3ca20id3dget20error20code20information4303e203ca3e).
+    ///
+    /// # Returns
+    /// * `Result<AvailableVariables, FoxError>` - A hash map with available error code information.
+    pub fn get_error_code_information(&self) -> Result<HashMap<u32, String>, FoxError> {
+        let path = self.fox_helper.pre_get_error_code_information()?;
+
+        let json = self.get_request(path, None)?;
+
+        let error_code_info = self.fox_helper.post_get_error_code_information(&json)?;
+
+        Ok(error_code_info)
     }
 
     /// Builds and sends a POST request to the FoxESS API.
