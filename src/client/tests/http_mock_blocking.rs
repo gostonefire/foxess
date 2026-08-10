@@ -984,7 +984,7 @@ fn blocking_set_main_switch_status() {
 #[cfg(feature = "blocking")]
 #[test]
 fn blocking_errno_nonzero_maps_to_error() {
-    use crate::{Fox, FoxSettings};
+    use crate::{Fox, FoxError, FoxSettings};
 
     const TS: i64 = 1_700_000_000_000;
     const PATH: &str = "/op/v0/device/setting/get";
@@ -1010,16 +1010,56 @@ fn blocking_errno_nonzero_maps_to_error() {
         .err()
         .expect("get_settings should fail");
 
-    let msg = format!("{err}");
-    assert!(msg.contains("40256"));
-    assert!(msg.contains("The request header parameters are missing"));
+    assert!(matches!(
+        &err,
+        FoxError::FoxCloud { errno: 40256, msg } if msg == "The request header parameters are missing"
+    ));
+    assert_eq!(err.errno(), Some(40256));
+    assert_eq!(err.http_status(), None);
+    assert!(!err.is_transient(), "an application-level rejection must not be retried");
+}
+
+/// Verifies that a FoxCloud error payload carried under a non-2xx HTTP status is still
+/// surfaced as a structured [`FoxError::FoxCloud`] rather than a bare status error.
+#[cfg(feature = "blocking")]
+#[test]
+fn blocking_errno_body_under_http_error_maps_to_foxcloud() {
+    use crate::{Fox, FoxError, FoxSettings};
+
+    const TS: i64 = 1_700_000_000_000;
+    const PATH: &str = "/op/v0/device/setting/get";
+
+    fn fixed_now() -> i64 { TS }
+
+    let server = MockServer::start();
+
+    let _m = server.mock(|when, then| {
+        when.method(POST).path(PATH);
+
+        then.status(401)
+            .header("Content-Type", "application/json")
+            .body(r#"{
+                "errno": 40256,
+                "msg": "The request header parameters are missing",
+                "result": null
+            }"#);
+    });
+
+    let fox = Fox::new_with_base_url_and_clock("TEST_API_KEY", "TEST_SN", 5, &server.base_url(), fixed_now).unwrap();
+    let err = fox.get_settings(vec![FoxSettings::MaxSetChargeCurrent])
+        .err()
+        .expect("get_settings should fail");
+
+    assert!(matches!(&err, FoxError::FoxCloud { errno: 40256, .. }));
+    assert_eq!(err.errno(), Some(40256));
+    assert_eq!(err.http_status(), None);
 }
 
 /// Verifies that HTTP status errors (e.g., 500 Internal Server Error) are correctly mapped to `FoxError`.
 #[cfg(feature = "blocking")]
 #[test]
 fn blocking_http_status_error_maps_to_error() {
-    use crate::{Fox, FoxSettings};
+    use crate::{Fox, FoxError, FoxSettings};
 
     const TS: i64 = 1_700_000_000_000;
     const PATH: &str = "/op/v0/device/setting/get";
@@ -1038,6 +1078,8 @@ fn blocking_http_status_error_maps_to_error() {
         .err()
         .expect("get_settings should fail");
 
-    let msg = format!("{err}");
-    assert!(msg.contains("500"));
+    assert!(matches!(&err, FoxError::HttpStatus { status: 500, body } if body == "oops"));
+    assert_eq!(err.http_status(), Some(500));
+    assert_eq!(err.errno(), None);
+    assert!(err.is_transient(), "a 5xx is worth retrying");
 }

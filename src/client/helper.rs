@@ -429,20 +429,43 @@ impl FoxHelper {
         )
     }
 
-    /// Post-network request: Validate the response from a POST request.
+    /// Post-network request: Validate the response from a successful request.
+    ///
+    /// Applies to both GET and POST requests, which share the same envelope.
+    /// A response can carry `errno != 0` even under an HTTP 200 status, which
+    /// is the normal way FoxCloud reports application-level failures.
     ///
     /// # Arguments
     /// * `json` - The JSON response string to validate.
     ///
     /// # Returns
     /// * `Result<String, FoxError>` - The original JSON string if the response is successful.
-    pub(crate) fn post_network_post_request(&self, json: String) -> Result<String, FoxError> {
+    pub(crate) fn post_network_request(&self, json: String) -> Result<String, FoxError> {
         let fox_res: FoxResponse = serde_json::from_str(&json)?;
         if fox_res.errno != 0 {
-            return Err(FoxError::FoxCloud(format!("errno: {}, msg: {}", fox_res.errno, fox_res.msg)));
+            return Err(FoxError::FoxCloud { errno: fox_res.errno, msg: fox_res.msg });
         }
 
         Ok(json)
+    }
+
+    /// Post-network request: Classify a non-success HTTP response.
+    ///
+    /// FoxCloud sometimes returns a structured `{errno, msg}` payload alongside a
+    /// non-2xx status, so the body is preferred when it parses into a real error.
+    /// Otherwise the status and (truncated) body are reported as-is.
+    ///
+    /// # Arguments
+    /// * `status` - The HTTP status code of the response.
+    /// * `body` - The raw response body.
+    ///
+    /// # Returns
+    /// * `FoxError` - A [`FoxError::FoxCloud`] if the body held a FoxCloud error, otherwise a [`FoxError::HttpStatus`].
+    pub(crate) fn network_error(&self, status: u16, body: String) -> FoxError {
+        match serde_json::from_str::<FoxResponse>(&body) {
+            Ok(fox_res) if fox_res.errno != 0 => FoxError::FoxCloud { errno: fox_res.errno, msg: fox_res.msg },
+            _ => FoxError::HttpStatus { status, body: truncate(&body, MAX_ERROR_BODY_LEN) },
+        }
     }
 
     /// Pre-network request: Prepare a GET request.
@@ -457,22 +480,6 @@ impl FoxHelper {
             format!("{}{}", self.base_url, path), // Full URL
             generate_headers(&self.api_key, path, (self.now_millis)(), Some(vec![("Content-Type", "application/json")])), // Headers
         )
-    }
-
-    /// Post-network request: Validate the response from a POST request.
-    ///
-    /// # Arguments
-    /// * `json` - The JSON response string to validate.
-    ///
-    /// # Returns
-    /// * `Result<String, FoxError>` - The original JSON string if the response is successful.
-    pub(crate) fn post_network_get_request(&self, json: String) -> Result<String, FoxError> {
-        let fox_res: FoxResponse = serde_json::from_str(&json)?;
-        if fox_res.errno != 0 {
-            return Err(FoxError::FoxCloud(format!("errno: {}, msg: {}", fox_res.errno, fox_res.msg)));
-        }
-
-        Ok(json)
     }
 
     /// Builds a charge time schedule after first checking for inconsistencies.
@@ -656,8 +663,75 @@ fn cet_to_utc(time: &str) -> Result<DateTime<Utc>, FoxError> {
     Ok(dt.with_timezone(&Utc))
 }
 
+/// Maximum number of characters of a failed response body kept in an error.
+///
+/// A gateway returning 502 can answer with a full HTML page, which has no place
+/// inlined in a log line.
+const MAX_ERROR_BODY_LEN: usize = 512;
+
+/// Shortens a string to at most `max_chars` characters, appending an ellipsis if cut.
+///
+/// Truncation happens on character boundaries, so multibyte input is safe.
+///
+/// # Arguments
+/// * `s` - The string to shorten.
+/// * `max_chars` - The maximum number of characters to keep.
+///
+/// # Returns
+/// * `String` - The original string, or a shortened copy ending in `...`.
+fn truncate(s: &str, max_chars: usize) -> String {
+    match s.char_indices().nth(max_chars) {
+        Some((idx, _)) => format!("{}...", &s[..idx]),
+        None => s.to_string(),
+    }
+}
+
 #[derive(Serialize, Deserialize)]
 struct FoxResponse {
     errno: u32,
+    /// Defaulted: some endpoints omit `msg`, which would otherwise surface the
+    /// real API error as a confusing parse failure.
+    #[serde(default)]
     msg: String,
+}
+
+#[cfg(test)]
+mod helper_tests {
+    use super::*;
+
+    /// Verifies that a string shorter than the limit is returned unchanged.
+    #[test]
+    fn truncate_leaves_short_input_untouched() {
+        assert_eq!(truncate("oops", 512), "oops");
+    }
+
+    /// Verifies that an over-long string is cut to the limit and marked as truncated.
+    #[test]
+    fn truncate_cuts_long_input() {
+        let long = "x".repeat(600);
+        let cut = truncate(&long, 512);
+
+        assert_eq!(cut.chars().count(), 515); // 512 kept + "..."
+        assert!(cut.ends_with("..."));
+    }
+
+    /// Verifies that truncation of multibyte input cuts on a character boundary.
+    ///
+    /// Slicing mid-codepoint would panic, so this guards the error path against
+    /// turning a bad response into a crash.
+    #[test]
+    fn truncate_respects_char_boundaries() {
+        let multibyte = "åäö".repeat(10); // 2 bytes per char
+        assert_eq!(truncate(&multibyte, 5), "åäöåä...");
+    }
+
+    /// Verifies that a response omitting `msg` still parses, rather than failing
+    /// as a JSON error and masking the real `errno`.
+    #[test]
+    fn fox_response_defaults_missing_msg() {
+        let res: FoxResponse = serde_json::from_str(r#"{"errno": 40256}"#).unwrap();
+
+        assert_eq!(res.errno, 40256);
+        assert_eq!(res.msg, "");
+    }
 }

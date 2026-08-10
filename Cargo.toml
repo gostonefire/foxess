@@ -1,6 +1,6 @@
 [package]
 name = "foxess"
-version = "1.1.0"
+version = "2.0.0"
 description = "Rust library for communication with FoxESS Cloud"
 homepage = "https://github.com/gostonefire/foxess"
 repository = "https://github.com/gostonefire/foxess"
@@ -23,10 +23,10 @@ serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 thiserror = "2.0"
 chrono = {  version = "0.4", features = ["serde"] }
-md-5 = "0.10.6"
+md-5 = "0.11"
 
 [dev-dependencies]
-tokio = { version = "1.49", features = ["macros", "rt"] }
+tokio = { version = "1.53", features = ["macros", "rt"] }
 httpmock = "0.8"
 
 [package.metadata.docs.rs]

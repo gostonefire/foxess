@@ -433,11 +433,13 @@ impl Fox {
             .send().await?;
 
         let status = req.status();
+        let res_body = req.text().await?;
+
         if !status.is_success() {
-            return Err(FoxError::FoxCloud(format!("{:?}", status)));
+            return Err(self.fox_helper.network_error(status.as_u16(), res_body));
         }
 
-        Ok(self.fox_helper.post_network_post_request(req.text().await?)?)
+        Ok(self.fox_helper.post_network_request(res_body)?)
     }
 
     /// Builds and sends a GET request to the FoxESS API.
@@ -459,11 +461,13 @@ impl Fox {
             .send().await?;
 
         let status = req.status();
+        let res_body = req.text().await?;
+
         if !status.is_success() {
-            return Err(FoxError::FoxCloud(format!("{:?}", status)));
+            return Err(self.fox_helper.network_error(status.as_u16(), res_body));
         }
 
-        Ok(self.fox_helper.post_network_get_request(req.text().await?)?)
+        Ok(self.fox_helper.post_network_request(res_body)?)
     }
 }
 
@@ -842,11 +846,13 @@ impl Fox {
             .send()?;
 
         let status = req.status();
+        let res_body = req.text()?;
+
         if !status.is_success() {
-            return Err(FoxError::FoxCloud(format!("{:?}", status)));
+            return Err(self.fox_helper.network_error(status.as_u16(), res_body));
         }
 
-        Ok(self.fox_helper.post_network_post_request(req.text()?)?)
+        Ok(self.fox_helper.post_network_request(res_body)?)
     }
 
     /// Builds and sends a GET request to the FoxESS API.
@@ -868,11 +874,13 @@ impl Fox {
             .send()?;
 
         let status = req.status();
+        let res_body = req.text()?;
+
         if !status.is_success() {
-            return Err(FoxError::FoxCloud(format!("{:?}", status)));
+            return Err(self.fox_helper.network_error(status.as_u16(), res_body));
         }
 
-        Ok(self.fox_helper.post_network_get_request(req.text()?)?)
+        Ok(self.fox_helper.post_network_request(res_body)?)
     }
 }
 
